@@ -6,6 +6,8 @@ const SettingsPanel = (() => {
   let btnSave;
   let btnCancel;
   let btnTestPlay;
+  let btnCheckUpdate;
+  let checkingUpdate = false;
   let hint;
   let siteUrlCurrent;
   let rowIndex = 0;
@@ -134,7 +136,7 @@ const SettingsPanel = (() => {
   }
 
   function focusables() {
-    return [input, btnSave, btnCancel, btnTestPlay].filter(Boolean);
+    return [input, btnSave, btnCancel, btnTestPlay, btnCheckUpdate].filter(Boolean);
   }
 
   function updateSiteUrlDisplay() {
@@ -145,7 +147,7 @@ const SettingsPanel = (() => {
 
   function rowWrap(el) {
     if (!el) return null;
-    if (el === btnSave || el === btnCancel || el === btnTestPlay) return el;
+    if (el === btnSave || el === btnCancel || el === btnTestPlay || el === btnCheckUpdate) return el;
     return el.closest(".field") || el;
   }
 
@@ -170,6 +172,8 @@ const SettingsPanel = (() => {
       msg = "OK here — close Settings without saving changes.";
     } else if (cur === btnTestPlay) {
       msg = "OK — test stream (optional).";
+    } else if (cur === btnCheckUpdate) {
+      msg = "OK — check GitHub for a newer KPV and install it.";
     } else if (cur === input) {
       msg = "OK — open keyboard and type your site (e.g. https://example.com). Back closes keyboard.";
     }
@@ -225,6 +229,19 @@ const SettingsPanel = (() => {
     window.location.href = `watch.html?hls=${encodeURIComponent(testUrl)}&t=${encodeURIComponent("Test stream")}`;
   }
 
+  /** Installs and restarts when a newer bundle exists; otherwise reports status in the hint bar. */
+  function checkForUpdates() {
+    if (checkingUpdate || typeof TvUpdate === "undefined") return;
+    checkingUpdate = true;
+    showHint("Checking for updates…");
+    TvUpdate.check({ toast: true })
+      .then((s) => showHint(TvUpdate.settingsSummary(s)))
+      .catch((e) => showHint(`Update check failed — ${(e && e.message) || e}`))
+      .then(() => {
+        checkingUpdate = false;
+      });
+  }
+
   function activateRow() {
     const list = focusables();
     const cur = list[rowIndex];
@@ -239,6 +256,10 @@ const SettingsPanel = (() => {
     }
     if (cur === btnTestPlay) {
       openTestPlayback();
+      return;
+    }
+    if (cur === btnCheckUpdate) {
+      checkForUpdates();
       return;
     }
     if (cur === input) {
@@ -271,7 +292,7 @@ const SettingsPanel = (() => {
       RemoteGuide.say("Site URL at top · teal Save box below");
     }
     if (typeof TvUpdate !== "undefined") {
-      TvUpdate.fetchStatus().then(function (s) {
+      TvUpdate.fetchStatus({ useSession: true }).then(function (s) {
         showHint(TvUpdate.settingsSummary(s));
       });
     }
@@ -372,6 +393,7 @@ const SettingsPanel = (() => {
     btnSave = document.getElementById("btn-save");
     btnCancel = document.getElementById("btn-cancel");
     btnTestPlay = document.getElementById("btn-test-play");
+    btnCheckUpdate = document.getElementById("btn-check-update");
     const legacyTestHls = document.querySelector("#test-hls-url");
     if (legacyTestHls) (legacyTestHls.closest(".field") || legacyTestHls).remove();
 
@@ -383,15 +405,7 @@ const SettingsPanel = (() => {
     });
     btnCancel.addEventListener("click", close);
     if (btnTestPlay) btnTestPlay.addEventListener("click", openTestPlayback);
-    if (btnSave && typeof TvUpdate !== "undefined") {
-      btnSave.addEventListener("focusin", () => {
-        TvUpdate.fetchStatus().then((s) => {
-          if (s.status === "update-available") {
-            showHint(TvUpdate.settingsSummary(s) + " · Press Refresh on the channel list to download.");
-          }
-        });
-      });
-    }
+    if (btnCheckUpdate) btnCheckUpdate.addEventListener("click", checkForUpdates);
 
     lockTextFields();
     for (const el of textFields()) {

@@ -1,4 +1,4 @@
-/* global document, localStorage, KPV_APP_VERSION */
+/* global document, localStorage, sessionStorage, KPV_APP_VERSION */
 /** TV hot-bundle update status (GitHub kpv-tv-manifest.json). */
 const TvUpdate = (() => {
   const OWNER = "Evzy";
@@ -7,6 +7,7 @@ const TvUpdate = (() => {
     "https://github.com/" + OWNER + "/" + REPO + "/releases/latest/download/kpv-tv-manifest.json";
   const LS_BUNDLE = "kpv_bundle_version";
   const LS_LAST_FAIL = "kpv_update_last_fail";
+  const SS_MANIFEST = "kpv_update_manifest";
   const MANIFEST_FETCH_MS = 15000;
   const BUNDLE_FETCH_MS = 180000;
   const APPLY_MAX_MS = 240000;
@@ -180,15 +181,37 @@ const TvUpdate = (() => {
     el.textContent = text;
   }
 
-  /** @returns {Promise<{running:string,cached:string,latest:string,status:string,detail?:string}>} */
-  async function fetchStatus() {
+  function sessionManifest() {
+    try {
+      const raw = sessionStorage.getItem(SS_MANIFEST);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function rememberSessionManifest(manifest) {
+    try {
+      sessionStorage.setItem(SS_MANIFEST, JSON.stringify(manifest));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  /**
+   * @param {{ useSession?: boolean }} [options] useSession: reuse the manifest fetched earlier this launch
+   * @returns {Promise<{running:string,cached:string,latest:string,status:string,detail?:string}>}
+   */
+  async function fetchStatus(options) {
     const running = runningVersion();
     const cached = cachedVersion();
     let latest = "";
-    let manifest = null;
+    let manifest = options && options.useSession ? sessionManifest() : null;
     try {
-      const text = await xhrGet(MANIFEST_URL, undefined, true);
-      manifest = JSON.parse(text);
+      if (!manifest) {
+        manifest = JSON.parse(await xhrGet(MANIFEST_URL, undefined, true));
+        rememberSessionManifest(manifest);
+      }
       latest = String(manifest.bundleVersion || "");
     } catch (e) {
       return {
@@ -252,7 +275,7 @@ const TvUpdate = (() => {
     const parts = ["Running v" + (s.running || runningVersion() || "?")];
     if (s.cached) parts.push("cached v" + s.cached);
     if (s.latest) parts.push("GitHub v" + s.latest);
-    if (s.status === "update-available") parts.push("— update pending, press Refresh");
+    if (s.status === "update-available") parts.push("— update available, press Check for updates");
     if (s.status === "offline") parts.push("— offline");
     return parts.join(" · ");
   }
