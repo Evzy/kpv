@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.10";
+const KPV_APP_VERSION = "1.0.11";
 
 
 /* global window */
@@ -128,16 +128,32 @@ const Site = (() => {
     }
   }
 
-  async function fetchJson(url) {
-    const res = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        Referer: `${site}/`,
-        Origin: site,
-      },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+  async function fetchJson(url, timeoutMs = 20_000) {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer =
+      controller &&
+      setTimeout(() => {
+        controller.abort();
+      }, timeoutMs);
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          Referer: `${site}/`,
+          Origin: site,
+        },
+        signal: controller ? controller.signal : undefined,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    } catch (err) {
+      if (controller && err && err.name === "AbortError") {
+        throw new Error("Request timed out");
+      }
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   /** Follow redirects so AVPlay gets a final HTTPS playlist URL when possible. */
@@ -1652,6 +1668,13 @@ const SettingsPanel = (() => {
           </span>
           <div class="title">${escapeHtml(ch.title)}</div>
           <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
+        const img = btn.querySelector("img");
+        if (img) {
+          img.addEventListener("error", () => {
+            img.removeAttribute("src");
+            img.classList.add("poster-missing");
+          });
+        }
         btn.addEventListener("click", () => Player.play(ch));
         btn.addEventListener("keydown", (e) => {
           if (e.keyCode === TvNav.KEY.ENTER) {
@@ -1704,14 +1727,20 @@ const SettingsPanel = (() => {
     if (!hadCatalog) {
       setStatus("Loading channels…");
     }
-    const categories = await Catalog.load();
-    setRefreshBusy(false);
-    if (!categories) {
-      setStatus("Couldn't load catalog. Check the site URL and try Refresh.");
+    try {
+      const categories = await Catalog.load();
+      if (!categories) {
+        setStatus("Couldn't load catalog. Check the site URL and try Refresh.");
+        TvNav.focusRefresh();
+        return;
+      }
+      renderCatalog(categories);
+    } catch (err) {
+      setStatus(`Couldn't load catalog. ${err && err.message ? err.message : "Try Refresh."}`);
       TvNav.focusRefresh();
-      return;
+    } finally {
+      setRefreshBusy(false);
     }
-    renderCatalog(categories);
   }
 
   function openSettings() {

@@ -48,6 +48,13 @@
           </span>
           <div class="title">${escapeHtml(ch.title)}</div>
           <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
+        const img = btn.querySelector("img");
+        if (img) {
+          img.addEventListener("error", () => {
+            img.removeAttribute("src");
+            img.classList.add("poster-missing");
+          });
+        }
         btn.addEventListener("click", () => Player.play(ch));
         btn.addEventListener("keydown", (e) => {
           if (e.keyCode === TvNav.KEY.ENTER) {
@@ -100,14 +107,20 @@
     if (!hadCatalog) {
       setStatus("Loading channels…");
     }
-    const categories = await Catalog.load();
-    setRefreshBusy(false);
-    if (!categories) {
-      setStatus("Couldn't load catalog. Check the site URL and try Refresh.");
+    try {
+      const categories = await Catalog.load();
+      if (!categories) {
+        setStatus("Couldn't load catalog. Check the site URL and try Refresh.");
+        TvNav.focusRefresh();
+        return;
+      }
+      renderCatalog(categories);
+    } catch (err) {
+      setStatus(`Couldn't load catalog. ${err && err.message ? err.message : "Try Refresh."}`);
       TvNav.focusRefresh();
-      return;
+    } finally {
+      setRefreshBusy(false);
     }
-    renderCatalog(categories);
   }
 
   function openSettings() {

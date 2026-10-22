@@ -7,6 +7,7 @@ import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
+import { readReleaseVersion } from "../../scripts/read-release-version.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -97,11 +98,19 @@ async function stagePackage({ version, appId, packageId, appName, hello }) {
     "hls-shell.html",
     "hls.min.js",
   ];
+  const releaseMeta = await readReleaseVersion();
   for (const name of flatFiles) {
     const src = path.join(rootDir, name);
-    if (await pathExists(src)) {
-      await cp(src, path.join(stagingDir, name));
+    if (!(await pathExists(src))) continue;
+    if (name === "index.html") {
+      let html = await readFile(src, "utf8");
+      html = html
+        .replace(/__KPV_APP_VERSION__/g, `v${releaseMeta.version}`)
+        .replace(/__KPV_STYLE_VER__/g, releaseMeta.version);
+      await writeFile(path.join(stagingDir, name), html, "utf8");
+      continue;
     }
+    await cp(src, path.join(stagingDir, name));
   }
 }
 

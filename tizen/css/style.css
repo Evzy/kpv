@@ -234,6 +234,11 @@ body.settings-open .remote-guide {
   display: block;
 }
 
+.card img.poster-missing {
+  object-fit: none;
+  background: linear-gradient(145deg, #1a1f2b 0%, #243044 100%);
+}
+
 .live-dot {
   display: none;
   position: absolute;

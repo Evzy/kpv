@@ -125,16 +125,32 @@ const Site = (() => {
     }
   }
 
-  async function fetchJson(url) {
-    const res = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        Referer: `${site}/`,
-        Origin: site,
-      },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+  async function fetchJson(url, timeoutMs = 20_000) {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer =
+      controller &&
+      setTimeout(() => {
+        controller.abort();
+      }, timeoutMs);
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          Referer: `${site}/`,
+          Origin: site,
+        },
+        signal: controller ? controller.signal : undefined,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    } catch (err) {
+      if (controller && err && err.name === "AbortError") {
+        throw new Error("Request timed out");
+      }
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   /** Follow redirects so AVPlay gets a final HTTPS playlist URL when possible. */
