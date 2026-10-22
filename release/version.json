@@ -1,6 +1,6 @@
 {
-  "version": "1.0.31",
-  "versionCode": 32,
+  "version": "1.0.32",
+  "versionCode": 33,
   "wgtShellVersion": "1.0.39",
   "minWgtShell": "1.0.38",
   "forceWgtInstall": false,

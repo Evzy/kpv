@@ -58,12 +58,23 @@
 
   function loadFromHotCache() {
     var cachedVer = "";
+    var slug = "";
     try {
       cachedVer = localStorage.getItem(LS_BUNDLE) || "";
+      slug = localStorage.getItem("kpv_bundle_cache_slug") || "";
     } catch (_) {
       cachedVer = "";
+      slug = "";
     }
-    if (!cachedVer || typeof tizen === "undefined" || !tizen.filesystem) {
+    if (typeof tizen === "undefined" || !tizen.filesystem) {
+      loadPackaged();
+      return;
+    }
+    if (slug && typeof KpvBundleCache !== "undefined" && KpvBundleCache.mainJsPathForSlug) {
+      tryResolveMain([KpvBundleCache.mainJsPathForSlug(slug)], 0);
+      return;
+    }
+    if (!cachedVer) {
       loadPackaged();
       return;
     }

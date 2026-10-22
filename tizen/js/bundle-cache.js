@@ -213,6 +213,7 @@ var KpvBundleCache = (function () {
     LS_SLUG_KEY: LS_SLUG_KEY,
     slugVersion: slugVersion,
     mainJsPath: mainJsPath,
+    mainJsPathForSlug: mainJsPathForSlug,
     listMainJsCandidates: listMainJsCandidates,
     extractZipToVersion: extractZipToVersion,
     setCachedVersion: setCachedVersion,

@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.31";
+const KPV_APP_VERSION = "1.0.32";
 
 
 /* global tizen, document, localStorage */
@@ -216,6 +216,7 @@ var KpvBundleCache = (function () {
     LS_SLUG_KEY: LS_SLUG_KEY,
     slugVersion: slugVersion,
     mainJsPath: mainJsPath,
+    mainJsPathForSlug: mainJsPathForSlug,
     listMainJsCandidates: listMainJsCandidates,
     extractZipToVersion: extractZipToVersion,
     setCachedVersion: setCachedVersion,
@@ -1614,7 +1615,11 @@ const TvUpdate = (() => {
     const el = document.getElementById("app-version");
     if (!el) return;
     const run = state.running || runningVersion();
+    const cached = state.cached != null ? state.cached : cachedVersion();
     let text = run ? "v" + run : "KPV";
+    if (cached && cached !== run) {
+      text += " · saved v" + cached;
+    }
     if (state.latest && compare(state.latest, run) > 0) {
       text += " · GitHub v" + state.latest;
     } else if (state.latest && compare(state.latest, run) === 0) {
@@ -2358,7 +2363,7 @@ const SettingsPanel = (() => {
   async function reloadCatalog() {
     if (catalogBusy) return;
     if (typeof TvUpdate !== "undefined") {
-      TvUpdate.check({ toast: true, reload: false });
+      await TvUpdate.check({ toast: true });
     }
     Site.load();
     if (!Site.siteOrigin()) {

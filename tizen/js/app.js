@@ -132,7 +132,7 @@
   async function reloadCatalog() {
     if (catalogBusy) return;
     if (typeof TvUpdate !== "undefined") {
-      TvUpdate.check({ toast: true, reload: false });
+      await TvUpdate.check({ toast: true });
     }
     Site.load();
     if (!Site.siteOrigin()) {

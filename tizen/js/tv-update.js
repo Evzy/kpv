@@ -106,7 +106,11 @@ const TvUpdate = (() => {
     const el = document.getElementById("app-version");
     if (!el) return;
     const run = state.running || runningVersion();
+    const cached = state.cached != null ? state.cached : cachedVersion();
     let text = run ? "v" + run : "KPV";
+    if (cached && cached !== run) {
+      text += " · saved v" + cached;
+    }
     if (state.latest && compare(state.latest, run) > 0) {
       text += " · GitHub v" + state.latest;
     } else if (state.latest && compare(state.latest, run) === 0) {
