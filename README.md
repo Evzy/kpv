@@ -38,6 +38,8 @@ npm run package
 
 Published artifacts (APK, `KPV.wgt`, hot bundle, manifest) go to **[kpv-releases](https://github.com/Evzy/kpv-releases)** via GitHub Actions. See [`docs/CI_CD.md`](docs/CI_CD.md) for secrets and cutting a release.
 
+**Updates:** Android uses **APK auto-update** only. **Hot reload** (`kpv-web-bundle.zip`) is **Samsung Tizen / `.wgt` only**. Manual `.wgt` reinstall is only when the **shell** changes (`wgtShellVersion`, `config.xml`, bootstrap, or `forceWgtInstall`) — details in [`docs/CI_CD.md`](docs/CI_CD.md#tizen-hot-bundle-vs-manual-wgt).
+
 ## Docs
 
 - CI/CD: [`docs/CI_CD.md`](docs/CI_CD.md)

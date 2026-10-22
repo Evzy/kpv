@@ -26,13 +26,53 @@ Artifacts live in **`kpv-releases`** (public, same owner as the source repo). Th
 2. Merge to **`main`**. CI creates release **`v{version}`** with all four assets if that tag is missing on **`kpv-releases`**.
 3. Optional: `git tag v1.0.8 && git push origin v1.0.8` to force publish for that tag.
 
-## In-app APK update
+## Platform update model
+
+| Platform | Auto-update mechanism | Hot reload of JS/CSS? |
+|----------|----------------------|------------------------|
+| **Android** (phone / Android TV) | In-app **APK** from `kpv-releases` on cold start | **No** — full APK only |
+| **Samsung Tizen** (`.wgt`) | **`kpv-web-bundle.zip`** via manifest (background) + occasional **manual `.wgt`** | **Yes — Tizen only** |
+
+Android never downloads or applies `kpv-web-bundle.zip` or `kpv-tv-manifest.json`. Those artifacts exist only for the TV widget.
+
+## In-app APK update (Android only)
 
 On **cold start**, the app checks `GET /repos/{owner}/kpv-releases/releases/latest`. If the tag is newer than `versionName`, it shows **Update** / **Later**. Defaults: owner from `release/version.json` → **`kpv-releases`**. Override with `UPDATE_GITHUB_*` in `local.properties` or environment.
 
-## Tizen hot update
+## Tizen: hot bundle vs manual `.wgt`
 
-The sideloaded WGT runs **`bootstrap.js`**, which loads **`kpv-tv-manifest.json`** from the latest GitHub release, verifies **`bundleSha256`**, caches **`kpv-web-bundle.zip`**, and shows a one-time “Updated to …” toast. If **`forceWgtInstall`** or the installed shell is below **`minWgtShell`**, the app shows a blocking screen with **`wgtUrl`**.
+The TV app loads **`main.js` / `style.css` from the installed `.wgt`** so startup is never blocked by the network. After boot, **`bootstrap.js`** (defer) fetches **`kpv-tv-manifest.json`**, may download **`kpv-web-bundle.zip`** (SHA-256 verified), and caches it under `documents/kpv-hot-cache`. A one-time toast can show “Updated to …” when a new bundle is cached.
+
+### When you do **not** need a manual `.wgt` reinstall
+
+Typical releases that only change Tizen **web logic** (files in `tizen/js/`, CSS, catalog/player/companion JS):
+
+- Bump **`version`** (and Android **`versionCode`**) in `release/version.json`.
+- Leave **`wgtShellVersion`** / **`minWgtShell`** unchanged (or only bump shell if you also ship a new `.wgt` for other reasons).
+- CI publishes a new **`kpv-web-bundle.zip`**; TVs with a recent shell pick it up in the background.
+
+Users on Samsung TV do **not** install a new `.wgt` for these releases once they already have a compatible shell.
+
+### When you **must** sideload a new `.wgt` (manual, one time per shell generation)
+
+Reinstall **`KPV.wgt`** from the release when any of these change:
+
+| Change | What to bump in `release/version.json` |
+|--------|----------------------------------------|
+| `config.xml` (app id, privileges, content entry) | **`wgtShellVersion`** + **`minWgtShell`** |
+| **`bootstrap.js`** loader / blocking UX / manifest URL | **`wgtShellVersion`** + **`minWgtShell`** |
+| `index.html` / `watch.html` **shell** (script tags, layout skeleton) | **`wgtShellVersion`** + **`minWgtShell`** |
+| New packaged assets only in `.wgt` (e.g. `jszip.min.js`, icons) | **`wgtShellVersion`** + **`minWgtShell`** |
+| Emergency “everyone reinstall now” | Set **`forceWgtInstall`: true** in manifest (via release) until TVs are on the new shell; then set back to `false` |
+
+After bumping **`minWgtShell`**, any TV whose installed shell is **older** than `minWgtShell` sees a **blocking screen** with **`wgtUrl`** until someone sideloads the new `.wgt`.
+
+**Rule of thumb:** if it is not inside the hot zip (`tizen/scripts/build-web-bundle.mjs` file list), it requires a new **`.wgt`**, not hot reload alone.
+
+### Operator checklist (Tizen)
+
+1. **JS/CSS-only fix** → bump `version` only → push `main` → TVs hot-cache; no USB step.
+2. **Shell / bootstrap / config change** → bump `wgtShellVersion` and `minWgtShell` → push `main` → sideload **`KPV.wgt` once** per TV (or set `forceWgtInstall` if you need to force it).
 
 ## Shared debug keystore
 
