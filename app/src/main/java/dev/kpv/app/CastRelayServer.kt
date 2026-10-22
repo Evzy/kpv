@@ -50,6 +50,20 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
     }
 
     override fun serve(session: IHTTPSession): Response {
+        // The Cast receiver page (gstatic.com) fetches media cross-origin, so every response needs CORS.
+        val response = if (session.method == Method.OPTIONS) {
+            newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "")
+        } else {
+            route(session)
+        }
+        response.addHeader("Access-Control-Allow-Origin", "*")
+        response.addHeader("Access-Control-Allow-Headers", "*")
+        response.addHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+        response.addHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range")
+        return response
+    }
+
+    private fun route(session: IHTTPSession): Response {
         val path = session.uri.substringBefore('?')
         val segments = path.trim('/').split('/')
         if (segments.size < 2 || segments[0] != "cast") {
@@ -86,10 +100,7 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
     }
 
     private fun serveMaster(entry: RelaySession, lanIp: String, token: String): Response {
-        val fetched = fetchFirstPlaylist(
-            CastHlsRelay.castEntryFetchCandidates(entry.masterUrl),
-            entry.stream.headers,
-        ) ?: return newFixedLengthResponse(
+        val fetched = fetchFirstPlaylist(listOf(entry.masterUrl), entry.stream.headers) ?: return newFixedLengthResponse(
             Response.Status.SERVICE_UNAVAILABLE,
             MIME_PLAINTEXT,
             "upstream playlist failed",
@@ -106,7 +117,7 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
             val variantUrl = CastHlsRelay.bestVariantPlaylistUrl(playlistText, playlistBase)
                 ?: CastHlsRelay.singleVariantPlaylistUrl(playlistText, playlistBase)
                 ?: return@repeat
-            val fetchUrl = CastHlsRelay.preferVideoMediaPlaylistUrl(variantUrl)
+            val fetchUrl = variantUrl
             val variantFetched = fetchUpstream(fetchUrl, entry.stream.headers)
             if (!CastHlsRelay.looksLikeHlsPlaylist(variantFetched.body)) {
                 Log.w(TAG, "variant not HLS (${variantFetched.body.size}B)")
@@ -178,7 +189,6 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
     private fun playlistResponse(body: String): Response {
         val response = newFixedLengthResponse(Response.Status.OK, HLS_MIME, body)
         response.addHeader("Cache-Control", "no-cache")
-        response.addHeader("Access-Control-Allow-Origin", "*")
         return response
     }
 
@@ -261,6 +271,32 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
             conn.disconnect()
             throw IllegalStateException("upstream $code ($err B err)")
         }
+        val upstreamMime = conn.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+        if (!upstreamMime.startsWith("video/") && !upstreamMime.startsWith("audio/")) {
+            val body = try {
+                conn.inputStream.readBytes()
+            } finally {
+                conn.disconnect()
+            }
+            val offset = CastHlsRelay.mpegTsSyncOffset(body)
+            if (offset < 0) {
+                Log.w(TAG, "segment has no TS sync ($upstreamMime ${body.size}B head=${hexHead(body)})")
+                return newFixedLengthResponse(
+                    Response.Status.OK,
+                    segmentMime(url, conn.contentType),
+                    ByteArrayInputStream(body),
+                    body.size.toLong(),
+                ) to body.size.toLong()
+            }
+            if (offset > 0) Log.i(TAG, "stripped ${offset}B disguise prefix ($upstreamMime)")
+            val length = (body.size - offset).toLong()
+            return newFixedLengthResponse(
+                Response.Status.OK,
+                TS_MIME,
+                ByteArrayInputStream(body, offset, body.size - offset),
+                length,
+            ) to length
+        }
         val mime = segmentMime(url, conn.contentType)
         val length = conn.contentLengthLong
         val input = conn.inputStream
@@ -304,6 +340,9 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
         }
     }
 
+    private fun hexHead(bytes: ByteArray): String =
+        bytes.take(16).joinToString("") { "%02x".format(it) }
+
     private fun binaryResponse(fetched: Fetched): Response {
         val mime = fetched.contentType?.substringBefore(';')?.trim()?.ifEmpty { OCTET_MIME } ?: OCTET_MIME
         return newFixedLengthResponse(
@@ -319,6 +358,7 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
         const val DEFAULT_PORT = 8767
         private const val HLS_MIME = "application/vnd.apple.mpegurl"
         private const val OCTET_MIME = "application/octet-stream"
+        private const val TS_MIME = "video/mp2t"
 
         @Volatile
         private var instance: CastRelayServer? = null

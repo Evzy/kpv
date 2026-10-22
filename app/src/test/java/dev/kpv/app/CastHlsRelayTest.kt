@@ -96,6 +96,18 @@ class CastHlsRelayTest {
     }
 
     @Test
+    fun mpegTsSyncOffset_findsPacketsAfterFakeImageHeader() {
+        val prefix = byteArrayOf(0x52, 0x49, 0x46, 0x46, 0x10, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50)
+        val packets = ByteArray(188 * 6).also { buf -> for (i in 0 until 6) buf[i * 188] = 0x47 }
+        assertEquals(prefix.size, CastHlsRelay.mpegTsSyncOffset(prefix + packets))
+    }
+
+    @Test
+    fun mpegTsSyncOffset_minusOneWhenNotTs() {
+        assertEquals(-1, CastHlsRelay.mpegTsSyncOffset(ByteArray(2000) { 0x11 }))
+    }
+
+    @Test
     fun resolveAgainstBase_absoluteUnchanged() {
         assertEquals(
             "https://other.example/seg.ts",

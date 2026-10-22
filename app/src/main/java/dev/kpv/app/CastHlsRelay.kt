@@ -191,6 +191,30 @@ object CastHlsRelay {
         return URL(URL(baseDir), trimmed).toString()
     }
 
+    /**
+     * Offset of the first MPEG-TS packet (0x47 sync byte repeating every 188 bytes), or -1.
+     * Some CDNs disguise segments as images by prepending a fake header.
+     */
+    fun mpegTsSyncOffset(bytes: ByteArray, packetsToCheck: Int = 5): Int {
+        val limit = minOf(bytes.size, 64 * 1024)
+        for (start in 0 until limit) {
+            if (bytes[start] != TS_SYNC) continue
+            var ok = true
+            for (p in 1 until packetsToCheck) {
+                val idx = start + p * TS_PACKET
+                if (idx >= bytes.size || bytes[idx] != TS_SYNC) {
+                    ok = false
+                    break
+                }
+            }
+            if (ok) return start
+        }
+        return -1
+    }
+
+    private const val TS_SYNC: Byte = 0x47
+    private const val TS_PACKET = 188
+
     fun looksLikeHlsPlaylist(bytes: ByteArray): Boolean {
         if (bytes.isEmpty()) return false
         val head = String(bytes, 0, minOf(bytes.size, 512), StandardCharsets.UTF_8)

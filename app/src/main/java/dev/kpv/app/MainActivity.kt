@@ -289,7 +289,7 @@ class MainActivity : AppCompatActivity(), CompanionHost {
             resolveHost,
             channel.streamUri,
             iframe,
-            preferRelayablePlaylist = CastController.isConnected(),
+            castMode = CastController.isConnected(),
         ) { stream ->
             resolver = null
             catalogView.setLoadingStream(null)
