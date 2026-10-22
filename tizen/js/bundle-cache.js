@@ -37,6 +37,20 @@ var KpvBundleCache = (function () {
     return slugVersion(version) + "-" + Date.now().toString(36) + "-" + rand;
   }
 
+  /*
+   * Samsung's legacy File.createDirectory / createFile are synchronous (they return the File and
+   * ignore callbacks), FileStream.write only accepts strings, and deleteFile/deleteDirectory need
+   * full paths. Prefer the Tizen 5+ path API (tizen.filesystem.openFile etc.) when present.
+   */
+  function hasPathApi() {
+    var fs = tizen.filesystem;
+    return (
+      typeof fs.createDirectory === "function" &&
+      typeof fs.openFile === "function" &&
+      typeof fs.deleteDirectory === "function"
+    );
+  }
+
   function resolvePath(path, mode) {
     return new Promise(function (resolve, reject) {
       try {
@@ -47,105 +61,160 @@ var KpvBundleCache = (function () {
     });
   }
 
-  function ensureRootDir() {
-    return resolvePath(cacheRootPath(), "rw").catch(function () {
-      return resolvePath("documents", "rw").then(function (doc) {
-        return new Promise(function (resolve, reject) {
-          doc.createDirectory(
-            ROOT,
-            resolve,
-            function () {
-              resolvePath(cacheRootPath(), "rw").then(resolve, reject);
-            },
-            false,
-          );
-        });
+  function pathExists(path) {
+    if (typeof tizen.filesystem.pathExists === "function") {
+      try {
+        return Promise.resolve(tizen.filesystem.pathExists(path));
+      } catch (_) {
+        return Promise.resolve(false);
+      }
+    }
+    return resolvePath(path, "r").then(
+      function () {
+        return true;
+      },
+      function () {
+        return false;
+      },
+    );
+  }
+
+  function makeDir(path) {
+    if (hasPathApi()) {
+      return Promise.resolve().then(function () {
+        tizen.filesystem.createDirectory(path, true);
       });
+    }
+    var cut = path.lastIndexOf("/");
+    return resolvePath(path.slice(0, cut), "rw").then(function (parent) {
+      parent.createDirectory(path.slice(cut + 1));
     });
   }
 
-  /** New unique subfolder; retry with a new slug if Samsung reports a name collision. */
-  function createFreshSubdir(rootDir, version) {
-    return new Promise(function (resolve, reject) {
-      var attempts = 0;
-      function tryCreate() {
-        attempts += 1;
-        if (attempts > 12) {
-          reject(new Error("Could not create cache folder"));
-          return;
-        }
-        var slug = freshSlugForVersion(version);
-        rootDir.createDirectory(
-          slug,
-          function (dir) {
-            resolve({ dir: dir, slug: slug });
+  function ensureRootDir() {
+    return pathExists(cacheRootPath()).then(function (exists) {
+      if (!exists) return makeDir(cacheRootPath());
+    });
+  }
+
+  /** New unique subfolder; retry with a new slug on a name collision. */
+  function createFreshSubdir(version) {
+    var attempts = 0;
+    function tryCreate() {
+      attempts += 1;
+      var slug = freshSlugForVersion(version);
+      var path = dirPathForSlug(slug);
+      return pathExists(path)
+        .then(function (exists) {
+          if (exists) throw new Error("exists");
+          return makeDir(path);
+        })
+        .then(
+          function () {
+            return slug;
           },
           function (err) {
-            var msg = err && err.message ? String(err.message) : String(err || "");
-            if (/already exists|exist/i.test(msg) || attempts < 12) {
-              tryCreate();
-              return;
-            }
-            reject(err || new Error("createDirectory failed"));
+            if (attempts >= 5) throw err;
+            return tryCreate();
           },
-          false,
         );
-      }
-      tryCreate();
-    });
+    }
+    return tryCreate();
   }
 
-  function removeSubdirQuiet(rootDir, slug) {
-    if (!slug) return Promise.resolve();
+  function removeDirQuiet(path) {
     return new Promise(function (resolve) {
       try {
-        rootDir.deleteDirectory(slug, resolve, resolve);
+        if (hasPathApi()) {
+          tizen.filesystem.deleteDirectory(path, true, resolve, resolve);
+          return;
+        }
+        var cut = path.lastIndexOf("/");
+        resolvePath(path.slice(0, cut), "rw").then(function (parent) {
+          parent.deleteDirectory(parent.fullPath + "/" + path.slice(cut + 1), true, resolve, resolve);
+        }, resolve);
       } catch (_) {
         resolve();
       }
     });
   }
 
-  function deleteFileQuiet(dir, name) {
+  function removeFileQuiet(path) {
     return new Promise(function (resolve) {
       try {
-        dir.deleteFile(name, resolve, resolve);
+        if (typeof tizen.filesystem.deleteFile === "function") {
+          tizen.filesystem.deleteFile(path, resolve, resolve);
+          return;
+        }
+        resolve();
       } catch (_) {
         resolve();
       }
     });
   }
 
-  function writeFile(dir, name, blob) {
-    return deleteFileQuiet(dir, name).then(function () {
+  function bytesToBase64(bytes) {
+    var bin = "";
+    for (var i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(bin);
+  }
+
+  function writeFile(dirPath, name, bytes) {
+    var path = dirPath + "/" + name;
+    if (hasPathApi()) {
+      return Promise.resolve().then(function () {
+        var fh = tizen.filesystem.openFile(path, "w");
+        try {
+          fh.writeData(bytes);
+        } finally {
+          fh.close();
+        }
+      });
+    }
+    return resolvePath(dirPath, "rw").then(function (dir) {
+      var file = dir.createFile(name);
       return new Promise(function (resolve, reject) {
-        dir.createFile(
-          name,
-          true,
-          function (file) {
-            file.openStream(
-              "w",
-              function (stream) {
-                var reader = new FileReader();
-                reader.onload = function () {
-                  try {
-                    stream.write(reader.result);
-                    stream.close();
-                    resolve();
-                  } catch (e) {
-                    reject(e);
-                  }
-                };
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(blob);
-              },
-              reject,
-            );
+        file.openStream(
+          "w",
+          function (stream) {
+            try {
+              stream.writeBase64(bytesToBase64(bytes));
+              stream.close();
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
           },
           reject,
         );
       });
     });
+  }
+
+  /** Drop abandoned attempt folders and stray root files from earlier broken builds. */
+  function pruneCache(keepSlug) {
+    return resolvePath(cacheRootPath(), "r")
+      .then(function (root) {
+        return new Promise(function (resolve) {
+          root.listFiles(resolve, function () {
+            resolve([]);
+          });
+        });
+      })
+      .then(
+        function (entries) {
+          return entries.reduce(function (chain, f) {
+            return chain.then(function () {
+              if (f.name === keepSlug) return;
+              var p = cacheRootPath() + "/" + f.name;
+              return f.isDirectory ? removeDirQuiet(p) : removeFileQuiet(p);
+            });
+          }, Promise.resolve());
+        },
+        function () {},
+      );
   }
 
   function readStoredSlug() {
@@ -166,29 +235,38 @@ var KpvBundleCache = (function () {
   }
 
   function extractZipToVersion(version, zip) {
-    var oldSlug = readStoredSlug();
     var newSlug = "";
+    var names = Object.keys(zip.files).filter(function (n) {
+      return !zip.files[n].dir;
+    });
+    if (
+      !names.some(function (n) {
+        return /(^|\/)main\.js$/i.test(n);
+      })
+    ) {
+      return Promise.reject(new Error("bundle has no main.js"));
+    }
 
-    return ensureRootDir().then(function (rootDir) {
-      return createFreshSubdir(rootDir, version).then(function (created) {
-        newSlug = created.slug;
-        var dir = created.dir;
-        var names = Object.keys(zip.files).filter(function (n) {
-          return !zip.files[n].dir;
-        });
+    return ensureRootDir()
+      .then(function () {
+        return createFreshSubdir(version);
+      })
+      .then(function (slug) {
+        newSlug = slug;
+        var dirPath = dirPathForSlug(slug);
         return names.reduce(function (chain, name) {
           return chain.then(function () {
             var base = name.split("/").pop().split("\\").pop();
-            return zip.files[name].async("blob").then(function (blob) {
-              return writeFile(dir, base, blob);
+            return zip.files[name].async("uint8array").then(function (bytes) {
+              return writeFile(dirPath, base, bytes);
             });
           });
         }, Promise.resolve());
-      }).then(function () {
+      })
+      .then(function () {
         persistCachePointers(version, newSlug);
-        return removeSubdirQuiet(rootDir, oldSlug);
+        return pruneCache(newSlug);
       });
-    });
   }
 
   function listMainJsCandidates(cachedVer) {
