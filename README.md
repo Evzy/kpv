@@ -2,6 +2,10 @@
 
 Android + Samsung Tizen player for IPTV-style catalogs (e.g. example.com).
 
+## Source repo
+
+https://github.com/Evzy/kpv
+
 ## Open in Cursor
 
 **File → Open Folder →** `C:\Users\User\kpv`
