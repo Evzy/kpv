@@ -294,6 +294,7 @@
       })
       .catch(function (err) {
         console.warn("Background bundle download failed:", err);
+        showToast("Update failed — " + (err && err.message ? err.message : "download error"), 9000);
       });
   }
 
@@ -302,9 +303,20 @@
       .then(function (text) {
         return JSON.parse(text);
       })
-      .then(runWithManifest)
-      .catch(function () {});
+      .then(function (manifest) {
+        var remote = String(manifest.bundleVersion || "");
+        var cached = readCachedVersion();
+        if (remote && compareTriple(parseTriple(remote), parseTriple(cached)) > 0) {
+          showToast("Downloading KPV v" + remote + "…", 8000);
+        }
+        runWithManifest(manifest);
+      })
+      .catch(function (err) {
+        showToast("Update check failed — " + (err && err.message ? err.message : "network"), 7000);
+      });
   }
+
+  window.KPV_triggerHotUpdate = runBackgroundUpdate;
 
   function run() {
     if (entry === "watch") return;

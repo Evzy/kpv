@@ -2,16 +2,12 @@
 (function init() {
   const verEl = document.getElementById("app-version");
   if (verEl && typeof KPV_APP_VERSION === "string" && KPV_APP_VERSION) {
-    var shellHint = "";
-    try {
-      var cached = localStorage.getItem("kpv_bundle_version");
-      if (cached && cached !== KPV_APP_VERSION) {
-        shellHint = " · bundle " + cached;
-      }
-    } catch (_) {
-      /* ignore */
-    }
-    verEl.textContent = "v" + KPV_APP_VERSION + shellHint;
+    verEl.textContent = "v" + KPV_APP_VERSION;
+  }
+  if (typeof TvUpdate !== "undefined") {
+    TvUpdate.fetchStatus().then(function (s) {
+      TvUpdate.applyVersionLine(s);
+    });
   }
   if (!document.getElementById("kpv-tizen-catalog-fix")) {
     const fix = document.createElement("style");
@@ -135,6 +131,9 @@
 
   async function reloadCatalog() {
     if (catalogBusy) return;
+    if (typeof TvUpdate !== "undefined") {
+      TvUpdate.check({ toast: true, reload: false });
+    }
     Site.load();
     if (!Site.siteOrigin()) {
       setStatus("Set your site URL first: press ↑, then → to the gear, OK for Settings.");

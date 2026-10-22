@@ -338,6 +338,11 @@ const SettingsPanel = (() => {
     if (typeof RemoteGuide !== "undefined") {
       RemoteGuide.say("Site URL at top · companion in middle · teal Save box below PIN");
     }
+    if (typeof TvUpdate !== "undefined") {
+      TvUpdate.fetchStatus().then(function (s) {
+        showHint(TvUpdate.settingsSummary(s));
+      });
+    }
 
     try {
       panel.tabIndex = 0;
@@ -442,6 +447,15 @@ const SettingsPanel = (() => {
     });
     btnCancel.addEventListener("click", close);
     if (btnTestPlay) btnTestPlay.addEventListener("click", openTestPlayback);
+    if (btnSave && typeof TvUpdate !== "undefined") {
+      btnSave.addEventListener("focusin", () => {
+        TvUpdate.fetchStatus().then((s) => {
+          if (s.status === "update-available") {
+            showHint(TvUpdate.settingsSummary(s) + " · Press Refresh on the channel list to download.");
+          }
+        });
+      });
+    }
 
     lockTextFields();
     for (const el of textFields()) {

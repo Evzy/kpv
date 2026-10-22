@@ -24,6 +24,7 @@ const jsOrder = [
   "player.js",
   "tv-nav.js",
   "catalog-nav.js",
+  "tv-update.js",
   "settings.js",
   "app.js",
 ];
