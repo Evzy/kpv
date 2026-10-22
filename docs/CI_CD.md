@@ -8,6 +8,8 @@
 
 Version source: [`release/version.json`](../release/version.json) (`version`, `versionCode`, `wgtShellVersion`, `minWgtShell`, `forceWgtInstall`).
 
+Local emulators and instrumented tests: [`docs/TESTING.md`](TESTING.md).
+
 ## Releases repo + token
 
 Artifacts live in **`kpv-releases`** (public, same owner as the source repo). The workflow publishes with secret **`KPV_RELEASES_TOKEN`**.
