@@ -5,7 +5,7 @@
     verEl.textContent = "v" + KPV_APP_VERSION;
   }
   if (typeof TvUpdate !== "undefined") {
-    TvUpdate.fetchStatus().then(function (s) {
+    TvUpdate.fetchStatus({ useSession: true }).then(function (s) {
       TvUpdate.applyVersionLine(s);
     });
   }
@@ -131,9 +131,6 @@
 
   async function reloadCatalog() {
     if (catalogBusy) return;
-    if (typeof TvUpdate !== "undefined") {
-      await TvUpdate.check({ toast: true });
-    }
     Site.load();
     if (!Site.siteOrigin()) {
       setStatus("Set your site URL first: press ↑, then → to the gear, OK for Settings.");

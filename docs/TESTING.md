@@ -65,7 +65,7 @@ Optional full IDE: [Tizen Studio download](https://developer.tizen.org/developme
 .\scripts\install-kpv-wgt-emulator.ps1
 ```
 
-Then use **Web Inspector** on the emulator for Settings / Refresh / hot-cache toasts.
+Then use **Web Inspector** on the emulator for Settings / Check for updates / hot-cache toasts.
 
 **Cloud hardware:** [Samsung Remote Test Lab](https://developer.samsung.com/remotetestlab) if the emulator differs from your Samsung TV.
 
@@ -79,12 +79,12 @@ Then use **Web Inspector** on the emulator for Settings / Refresh / hot-cache to
 | OS | **Tizen 6.0** (does not upgrade to 7+ on this hardware) |
 | Firmware | **T-NKLAUABC-2301.1** (BT - S) |
 
-The installed **T-samsung-10.0-x86_64** emulator is **not** a stand-in for this set (filesystem, keyboard, and performance differ). Use the emulator for smoke tests; sign off **hot Refresh**, **Settings**, and **playback** on this TV.
+The installed **T-samsung-10.0-x86_64** emulator is **not** a stand-in for this set (filesystem, keyboard, and performance differ). Use the emulator for smoke tests; sign off **hot update**, **Settings**, and **playback** on this TV.
 
 **Checklist on the reference TV:**
 
 1. Sideload latest **`KPV-v*.wgt`** from [kpv-releases](https://github.com/Evzy/kpv-releases) when the shell/cache fix changes.
-2. **Refresh** — progress should move through download → saving → restart; header ends at **`v… · up to date`** matching GitHub.
+2. **Updates** — checked once per app launch (not on returning from a channel). **Settings → Check for updates**: progress should move through download → saving → restart; header ends at **`v… · up to date`** matching GitHub. **Refresh** only reloads channels.
 3. **Settings** — site URL, **Save**; Back/Done should dismiss the keyboard without leaving Settings.
 4. Play one live channel (resolved on the TV, "Resolving stream on TV…") and the test stream.
 

@@ -7,6 +7,8 @@
     "https://github.com/" + RELEASES_OWNER + "/" + RELEASES_REPO + "/releases/latest/download/kpv-tv-manifest.json";
   var LS_BUNDLE_VERSION = "kpv_bundle_version";
   var LS_ANNOUNCED = "kpv_last_announced_bundle";
+  /** sessionStorage survives page navigation but not an app restart, so this marks "checked this launch". */
+  var SS_CHECKED = "kpv_update_checked";
   var CACHE_DIR = "kpv-hot-cache";
   var FETCH_TIMEOUT_MS = 12000;
 
@@ -268,6 +270,16 @@
 
   window.KPV_triggerHotUpdate = runBackgroundUpdate;
 
+  function checkedThisLaunch() {
+    try {
+      if (sessionStorage.getItem(SS_CHECKED) === "1") return true;
+      sessionStorage.setItem(SS_CHECKED, "1");
+    } catch (_) {
+      /* no sessionStorage: check every time */
+    }
+    return false;
+  }
+
   function run() {
     if (entry === "watch") return;
     if (usesLegacyMainScript()) {
@@ -279,6 +291,7 @@
       });
       return;
     }
+    if (checkedThisLaunch()) return;
     runBackgroundUpdate();
   }
 
