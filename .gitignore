@@ -8,6 +8,7 @@ release/kpv-web-bundle.zip
 release/bundle-sha256.txt
 release/kpv-tv-manifest.json
 tizen/bootstrap.js
+tizen/js/app-version.js
 tizen/jszip.min.js
 tizen/node_modules/
 tizen/.cache/

@@ -117,7 +117,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
             elevation = dp(6).toFloat()
             addView(
                 TextView(this@MainActivity).apply {
-                    text = getString(R.string.app_name)
+                    text = getString(R.string.header_with_version, BuildConfig.VERSION_NAME)
                     setTextColor(ContextCompat.getColor(this@MainActivity, R.color.kpv_text_primary))
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
                 },

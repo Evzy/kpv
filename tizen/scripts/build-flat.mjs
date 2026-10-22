@@ -1,12 +1,18 @@
 import { cp, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { syncTizenPackageJson } from "../../scripts/read-release-version.mjs";
+import { readReleaseVersion, syncTizenPackageJson } from "../../scripts/read-release-version.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-await syncTizenPackageJson();
+const releaseMeta = await syncTizenPackageJson();
+await writeFile(
+  path.join(root, "js", "app-version.js"),
+  `const KPV_APP_VERSION = "${releaseMeta.version}";\n`,
+  "utf8",
+);
 const jsOrder = [
+  "app-version.js",
   "site.js",
   "tv-keys.js",
   "remote-guide.js",

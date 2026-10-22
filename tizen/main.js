@@ -1,3 +1,6 @@
+const KPV_APP_VERSION = "1.0.10";
+
+
 /* global window */
 const Site = (() => {
   const STORAGE_KEY = "kpv_site_url";
@@ -1599,8 +1602,12 @@ const SettingsPanel = (() => {
 })();
 
 
-/* global Site, Catalog, Player, TvNav, SettingsPanel, CatalogNav */
+/* global Site, Catalog, Player, TvNav, SettingsPanel, CatalogNav, KPV_APP_VERSION */
 (function init() {
+  const verEl = document.getElementById("app-version");
+  if (verEl && typeof KPV_APP_VERSION === "string" && KPV_APP_VERSION) {
+    verEl.textContent = `v${KPV_APP_VERSION}`;
+  }
   TvNav.registerKeys();
   TvNav.wireTopBarFocusRing();
   CatalogNav.wire();

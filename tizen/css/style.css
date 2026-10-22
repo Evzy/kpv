@@ -33,6 +33,13 @@ body {
   font-weight: 700;
 }
 
+.logo .app-version {
+  font-size: 20px;
+  font-weight: 500;
+  color: #9ca3af;
+  margin-left: 12px;
+}
+
 .top-bar-actions {
   display: flex;
   align-items: center;

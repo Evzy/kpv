@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">KPV</string>
+    <string name="header_with_version">KPV v%1$s</string>
     <string name="settings">Settings</string>
     <string name="settings_title">Source</string>
     <string name="site_origin">Site URL</string>

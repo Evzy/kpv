@@ -1,5 +1,9 @@
-/* global Site, Catalog, Player, TvNav, SettingsPanel, CatalogNav */
+/* global Site, Catalog, Player, TvNav, SettingsPanel, CatalogNav, KPV_APP_VERSION */
 (function init() {
+  const verEl = document.getElementById("app-version");
+  if (verEl && typeof KPV_APP_VERSION === "string" && KPV_APP_VERSION) {
+    verEl.textContent = `v${KPV_APP_VERSION}`;
+  }
   TvNav.registerKeys();
   TvNav.wireTopBarFocusRing();
   CatalogNav.wire();
