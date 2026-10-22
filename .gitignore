@@ -4,6 +4,7 @@
 build/
 local.properties
 app/ci-shared-debug.keystore
+app/kpv-ci.keystore
 release/kpv-web-bundle.zip
 release/bundle-sha256.txt
 release/kpv-tv-manifest.json

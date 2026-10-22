@@ -65,13 +65,13 @@ jobs:
           if [ -z "$B64" ]; then
             echo "::notice::KPV_SHARED_DEBUG_KEYSTORE_B64 not set — APK uses runner debug key; in-app updates may not replace sideloaded builds."
           else
-            echo "$B64" | base64 -d > "${{ github.workspace }}/app/ci-shared-debug.keystore"
+            echo "$B64" | base64 -d > "${{ github.workspace }}/app/kpv-ci.keystore"
           fi
 
       - name: Unit tests + debug APK
         env:
           CI: "true"
-          KPV_SHARED_DEBUG_KEYSTORE: ${{ github.workspace }}/app/ci-shared-debug.keystore
+          KPV_SHARED_DEBUG_KEYSTORE: ${{ github.workspace }}/app/kpv-ci.keystore
           KPV_SHARED_DEBUG_STORE_PASSWORD: ${{ secrets.KPV_SHARED_DEBUG_STORE_PASSWORD }}
           KPV_SHARED_DEBUG_KEY_ALIAS: ${{ secrets.KPV_SHARED_DEBUG_KEY_ALIAS }}
           KPV_SHARED_DEBUG_KEY_PASSWORD: ${{ secrets.KPV_SHARED_DEBUG_KEY_PASSWORD }}

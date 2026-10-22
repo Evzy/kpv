@@ -80,7 +80,9 @@ APK upgrades require the **same signing certificate**. If Android shows **App no
 
 In-app updates use the **system install screen** (not silent PackageInstaller sessions). If install still fails, download the APK on a PC and run `adb install -r KPV-v*-debug.apk`, or allow **Install unknown apps** for both **KPV** and your **browser/files** app.
 
-CI and local builds can share one debug keystore:
+**Important:** Release APKs **v1.0.8–v1.0.17** were signed with a shared keystore whose certificate had **`CA:true`**. Many phones reject that with **App not installed**, while **v1.0.7** (normal Android Debug cert) still installs. From **v1.0.18+**, CI uses a proper app signing keystore (`scripts/generate-kpv-android-keystore.ps1`). Everyone on v1.0.7 or the bad cert must **uninstall once**, then install **v1.0.18+**.
+
+CI and local builds share one debug keystore:
 
 | Secret | Purpose |
 |--------|---------|
