@@ -8,9 +8,16 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port) {
+
+    private class Segment(val bytes: ByteArray, val offset: Int, val mime: String) {
+        val length: Int get() = bytes.size - offset
+    }
 
     private class RelaySession(
         val stream: ResolvedStream,
@@ -19,6 +26,33 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
         private val upstreamById = ConcurrentHashMap<String, String>()
         private val idByUpstream = ConcurrentHashMap<String, String>()
         private val nextId = AtomicInteger(0)
+        private val segmentCache = LinkedHashMap<String, Future<Segment>>()
+
+        @Volatile
+        var mediaPlaylistUrl: String? = null
+
+        fun prefetch(url: String, load: () -> Segment): Future<Segment> = synchronized(segmentCache) {
+            segmentCache[url]?.let { return it }
+            val future = prefetchPool.submit(load)
+            segmentCache[url] = future
+            while (segmentCache.size > MAX_CACHED_SEGMENTS) {
+                segmentCache.remove(segmentCache.keys.first())?.cancel(true)
+            }
+            future
+        }
+
+        fun cached(url: String): Future<Segment>? = synchronized(segmentCache) { segmentCache[url] }
+
+        fun evict(url: String) {
+            synchronized(segmentCache) { segmentCache.remove(url) }
+        }
+
+        fun clearCache() {
+            synchronized(segmentCache) {
+                segmentCache.values.forEach { it.cancel(true) }
+                segmentCache.clear()
+            }
+        }
 
         fun relayUrl(upstream: String, lanIp: String, port: Int, token: String): String {
             idByUpstream[upstream]?.let { id ->
@@ -42,10 +76,11 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
     }
 
     fun removeToken(token: String) {
-        sessions.remove(token)
+        sessions.remove(token)?.clearCache()
     }
 
     fun clearAll() {
+        sessions.values.forEach { it.clearCache() }
         sessions.clear()
     }
 
@@ -100,6 +135,18 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
     }
 
     private fun serveMaster(entry: RelaySession, lanIp: String, token: String): Response {
+        entry.mediaPlaylistUrl?.let { mediaUrl ->
+            val cached = runCatching { fetchUpstream(mediaUrl, entry.stream.headers) }.getOrNull()
+            if (cached != null && CastHlsRelay.looksLikeHlsPlaylist(cached.body)) {
+                val text = String(cached.body, Charsets.UTF_8)
+                if (CastHlsRelay.mediaSegmentUrls(text, mediaUrl).isNotEmpty()) {
+                    return servePlaylist(entry, text, mediaUrl, lanIp, token)
+                }
+            }
+            Log.w(TAG, "cached media playlist failed; re-resolving from master")
+            entry.mediaPlaylistUrl = null
+        }
+
         val fetched = fetchFirstPlaylist(listOf(entry.masterUrl), entry.stream.headers) ?: return newFixedLengthResponse(
             Response.Status.SERVICE_UNAVAILABLE,
             MIME_PLAINTEXT,
@@ -128,10 +175,68 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
             playlistBase = fetchUrl
         }
 
-        val rewritten = rewrite(entry, playlistText, playlistBase, lanIp, token)
-        val segLines = rewritten.lineSequence().count { it.isNotBlank() && !it.trimStart().startsWith("#") }
-        Log.i(TAG, "master response ${rewritten.length}B segLines=$segLines body=${rewritten.take(400)}")
-        return playlistResponse(rewritten)
+        if (CastHlsRelay.mediaSegmentUrls(playlistText, playlistBase).isNotEmpty()) {
+            entry.mediaPlaylistUrl = playlistBase
+        }
+        return servePlaylist(entry, playlistText, playlistBase, lanIp, token)
+    }
+
+    /**
+     * Starts background downloads for every segment and only advertises segments that are already
+     * in memory, so the receiver never waits on the CDN when it requests one.
+     */
+    private fun servePlaylist(
+        entry: RelaySession,
+        text: String,
+        upstreamUrl: String,
+        lanIp: String,
+        token: String,
+    ): Response {
+        val segmentUrls = CastHlsRelay.mediaSegmentUrls(text, upstreamUrl)
+        var served = text
+        if (segmentUrls.isNotEmpty()) {
+            val futures = segmentUrls.map { url ->
+                entry.prefetch(url) { downloadSegment(url, entry.stream.headers) }
+            }
+            val deadline = System.currentTimeMillis() + FIRST_SEGMENTS_WAIT_MS
+            futures.take(MIN_READY_SEGMENTS).forEach { future ->
+                val remaining = deadline - System.currentTimeMillis()
+                if (remaining > 0) runCatching { future.get(remaining, TimeUnit.MILLISECONDS) }
+            }
+            val ready = futures.indexOfFirst { !isReady(it) }.let { if (it < 0) futures.size else it }
+            if (ready > 0) served = CastHlsRelay.trimMediaPlaylist(text, ready)
+            Log.i(TAG, "playlist ready=$ready/${futures.size}")
+        }
+        return playlistResponse(rewrite(entry, served, upstreamUrl, lanIp, token))
+    }
+
+    private fun isReady(future: Future<Segment>): Boolean =
+        future.isDone && !future.isCancelled && runCatching { future.get() }.isSuccess
+
+    private fun downloadSegment(url: String, headers: Map<String, String>): Segment {
+        val started = System.currentTimeMillis()
+        val conn = openUpstream(url, relayHeaders(headers, url), null)
+        try {
+            val code = conn.responseCode
+            if (code !in 200..299) throw IllegalStateException("upstream $code")
+            val body = conn.inputStream.readBytes()
+            val upstreamMime = conn.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+            val segment = if (upstreamMime.startsWith("video/") || upstreamMime.startsWith("audio/")) {
+                Segment(body, 0, upstreamMime)
+            } else {
+                val offset = CastHlsRelay.mpegTsSyncOffset(body)
+                if (offset < 0) {
+                    Log.w(TAG, "segment has no TS sync ($upstreamMime ${body.size}B head=${hexHead(body)})")
+                    Segment(body, 0, segmentMime(url, conn.contentType))
+                } else {
+                    Segment(body, offset, TS_MIME)
+                }
+            }
+            Log.i(TAG, "prefetched ${segment.length}B in ${System.currentTimeMillis() - started}ms")
+            return segment
+        } finally {
+            conn.disconnect()
+        }
     }
 
     private fun serveProxy(entry: RelaySession, session: IHTTPSession): Response {
@@ -156,10 +261,23 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
         if (target.substringBefore('?').endsWith(".m3u8", ignoreCase = true)) {
             val fetched = fetchUpstream(target, entry.stream.headers, range)
             if (CastHlsRelay.looksLikeHlsPlaylist(fetched.body)) {
-                val rewritten = rewrite(entry, String(fetched.body, Charsets.UTF_8), target, lanIp, token)
-                return playlistResponse(rewritten)
+                return servePlaylist(entry, String(fetched.body, Charsets.UTF_8), target, lanIp, token)
             }
             return binaryResponse(fetched)
+        }
+
+        entry.cached(target)?.let { future ->
+            val segment = runCatching { future.get(SEGMENT_WAIT_MS, TimeUnit.MILLISECONDS) }.getOrNull()
+            if (segment != null) {
+                Log.i(TAG, "segment from cache ${segment.length}B ${System.currentTimeMillis() - started}ms")
+                return newFixedLengthResponse(
+                    Response.Status.OK,
+                    segment.mime,
+                    ByteArrayInputStream(segment.bytes, segment.offset, segment.length),
+                    segment.length.toLong(),
+                )
+            }
+            entry.evict(target)
         }
 
         return try {
@@ -359,6 +477,14 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
         private const val HLS_MIME = "application/vnd.apple.mpegurl"
         private const val OCTET_MIME = "application/octet-stream"
         private const val TS_MIME = "video/mp2t"
+        private const val MAX_CACHED_SEGMENTS = 6
+        private const val MIN_READY_SEGMENTS = 2
+        private const val FIRST_SEGMENTS_WAIT_MS = 10_000L
+        private const val SEGMENT_WAIT_MS = 20_000L
+
+        private val prefetchPool = Executors.newFixedThreadPool(3) { runnable ->
+            Thread(runnable, "kpv-cast-prefetch").apply { isDaemon = true }
+        }
 
         @Volatile
         private var instance: CastRelayServer? = null

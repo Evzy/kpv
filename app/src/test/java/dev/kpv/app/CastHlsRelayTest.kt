@@ -95,6 +95,35 @@ class CastHlsRelayTest {
         assertEquals(null, CastHlsRelay.singleVariantPlaylistUrl(body, "https://cdn.example.com/live.m3u8"))
     }
 
+    private val livePlaylist = """
+        #EXTM3U
+        #EXT-X-TARGETDURATION:6
+        #EXT-X-MEDIA-SEQUENCE:100
+        #EXTINF:5.0,
+        a.ts
+        #EXTINF:5.0,
+        b.ts
+        #EXTINF:5.0,
+        c.ts
+    """.trimIndent()
+
+    @Test
+    fun mediaSegmentUrls_resolvesInOrder() {
+        assertEquals(
+            listOf("https://cdn/x/a.ts", "https://cdn/x/b.ts", "https://cdn/x/c.ts"),
+            CastHlsRelay.mediaSegmentUrls(livePlaylist, "https://cdn/x/mono.ts.m3u8"),
+        )
+    }
+
+    @Test
+    fun trimMediaPlaylist_dropsNewestSegments() {
+        val trimmed = CastHlsRelay.trimMediaPlaylist(livePlaylist, 2)
+        assertTrue(trimmed.contains("#EXT-X-MEDIA-SEQUENCE:100"))
+        assertTrue(trimmed.contains("a.ts") && trimmed.contains("b.ts"))
+        assertEquals(false, trimmed.contains("c.ts"))
+        assertEquals(2, trimmed.lines().count { it.startsWith("#EXTINF") })
+    }
+
     @Test
     fun mpegTsSyncOffset_findsPacketsAfterFakeImageHeader() {
         val prefix = byteArrayOf(0x52, 0x49, 0x46, 0x46, 0x10, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50)

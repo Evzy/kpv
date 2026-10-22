@@ -191,6 +191,34 @@ object CastHlsRelay {
         return URL(URL(baseDir), trimmed).toString()
     }
 
+    /** Absolute segment URLs of a media playlist, oldest first; empty for master playlists. */
+    fun mediaSegmentUrls(body: String, upstreamPlaylistUrl: String): List<String> {
+        val lines = body.lines().map { it.trim() }
+        if (lines.none { it.startsWith("#EXTINF", ignoreCase = true) }) return emptyList()
+        val baseDir = playlistBaseDir(upstreamPlaylistUrl)
+        return lines
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .map { resolveAgainstBase(it, baseDir) }
+    }
+
+    /** Keeps the header and the first [keepSegments] segments, dropping newer ones from the end. */
+    fun trimMediaPlaylist(body: String, keepSegments: Int): String {
+        val out = mutableListOf<String>()
+        var kept = 0
+        for (line in body.lines()) {
+            val trimmed = line.trim()
+            if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                if (kept >= keepSegments) break
+                kept++
+                out.add(line)
+                continue
+            }
+            if (kept >= keepSegments && trimmed.startsWith("#EXTINF", ignoreCase = true)) break
+            out.add(line)
+        }
+        return out.joinToString("\n").trimEnd() + "\n"
+    }
+
     /**
      * Offset of the first MPEG-TS packet (0x47 sync byte repeating every 188 bytes), or -1.
      * Some CDNs disguise segments as images by prepending a fake header.
