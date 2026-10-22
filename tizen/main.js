@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.20";
+const KPV_APP_VERSION = "1.0.21";
 
 
 /* global window */
@@ -1300,8 +1300,23 @@ const SettingsPanel = (() => {
   let hint;
   let siteUrlCurrent;
   let rowIndex = 0;
+  /** @type {HTMLInputElement|null} */
+  let editingTextField = null;
   /** @type {(url: string) => void} */
   let onSaved = () => {};
+
+  function isBackKey(e) {
+    if (!e) return false;
+    if (typeof TvKeys !== "undefined" && TvKeys.isBack(e)) return true;
+    return (
+      e.keyCode === 10009 ||
+      e.keyCode === 461 ||
+      e.keyCode === 27 ||
+      e.key === "Back" ||
+      e.key === "XF86Back" ||
+      e.key === "Escape"
+    );
+  }
 
   function textFields() {
     return [input, companionPhone, companionPin, testHlsInput].filter(Boolean);
@@ -1316,6 +1331,7 @@ const SettingsPanel = (() => {
   }
 
   function unlockTextField(el) {
+    editingTextField = el;
     lockTextFields();
     el.readOnly = false;
     el.tabIndex = 0;
@@ -1332,15 +1348,48 @@ const SettingsPanel = (() => {
   }
 
   function isTextEntryActive() {
-    const active = document.activeElement;
-    if (textFields().includes(active)) return true;
-    return textFields().some((el) => !el.readOnly);
+    return editingTextField !== null;
   }
 
   function dismissTextEntry() {
+    editingTextField = null;
     blurTextFields();
     lockTextFields();
     applyRowFocus();
+    try {
+      if (panel) panel.focus();
+    } catch (_) {
+      /* ignore */
+    }
+    showHint("↑ ↓ move · OK on a row · Back again closes Settings");
+  }
+
+  function captureTextFieldKeys(e) {
+    if (!isOpen() || !isTextEntryActive()) return;
+    const code = e.keyCode;
+    if (isBackKey(e)) {
+      dismissTextEntry();
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+      return;
+    }
+    if (code === TvNav.KEY.DOWN || code === TvNav.KEY.UP) {
+      if (code === TvNav.KEY.DOWN) rowIndex += 1;
+      else rowIndex -= 1;
+      dismissTextEntry();
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+    }
+  }
+
+  function captureTizenBack(e) {
+    if (!isOpen() || !isTextEntryActive()) return;
+    if (e && e.keyName === "back") {
+      dismissTextEntry();
+      e.preventDefault();
+    }
   }
 
   function isOpen() {
@@ -1381,8 +1430,10 @@ const SettingsPanel = (() => {
   }
 
   function applyRowFocus() {
-    blurTextFields();
-    lockTextFields();
+    if (!editingTextField) {
+      blurTextFields();
+      lockTextFields();
+    }
     const list = focusables();
     if (!list.length) return;
     if (rowIndex < 0) rowIndex = 0;
@@ -1530,7 +1581,7 @@ const SettingsPanel = (() => {
     if (cur === input || cur === companionPhone || cur === companionPin || cur === testHlsInput) {
       unlockTextField(cur);
       cur.focus();
-      showHint("Keyboard open — Back closes keyboard, then ↑↓ to move.");
+      showHint("Keyboard open — Back or ↓ exits field, then ↑↓ to move rows.");
     }
   }
 
@@ -1562,9 +1613,12 @@ const SettingsPanel = (() => {
     if (browse) browse.classList.add("hidden");
 
     document.body.classList.add("settings-open");
+    editingTextField = null;
     rowIndex = 0;
     lockTextFields();
     blurTextFields();
+    document.addEventListener("keydown", captureTextFieldKeys, true);
+    document.addEventListener("tizenhwkey", captureTizenBack, true);
     updateSiteUrlDisplay();
     applyRowFocus();
     if (typeof RemoteGuide !== "undefined") {
@@ -1580,6 +1634,9 @@ const SettingsPanel = (() => {
   }
 
   function close() {
+    document.removeEventListener("keydown", captureTextFieldKeys, true);
+    document.removeEventListener("tizenhwkey", captureTizenBack, true);
+    editingTextField = null;
     panel.classList.add("hidden");
     panel.classList.remove("settings--open");
     panel.setAttribute("aria-hidden", "true");
@@ -1602,7 +1659,14 @@ const SettingsPanel = (() => {
     const code = e.keyCode;
 
     if (isTextEntryActive()) {
-      if (TvKeys.isBack(e)) {
+      if (isBackKey(e)) {
+        dismissTextEntry();
+        e.preventDefault();
+        return true;
+      }
+      if (code === TvNav.KEY.DOWN || code === TvNav.KEY.UP) {
+        if (code === TvNav.KEY.DOWN) rowIndex += 1;
+        else rowIndex -= 1;
         dismissTextEntry();
         e.preventDefault();
         return true;
@@ -1634,7 +1698,7 @@ const SettingsPanel = (() => {
     if (!isOpen()) return false;
     if (isTextEntryActive()) {
       dismissTextEntry();
-      e.preventDefault();
+      if (e.preventDefault) e.preventDefault();
       return true;
     }
     close();
@@ -1668,11 +1732,13 @@ const SettingsPanel = (() => {
     lockTextFields();
     for (const el of textFields()) {
       el.addEventListener("focusin", () => {
-        if (!isOpen() || el.readOnly) {
+        if (!isOpen()) return;
+        if (el.readOnly || editingTextField !== el) {
           el.blur();
-          if (isOpen()) applyRowFocus();
+          if (isOpen() && !editingTextField) applyRowFocus();
         }
       });
+      el.addEventListener("keydown", captureTextFieldKeys, true);
     }
   }
 
@@ -1867,7 +1933,7 @@ const SettingsPanel = (() => {
       e.preventDefault();
       return true;
     }
-    if (SettingsPanel.handleBack(e)) return true;
+    if (SettingsPanel.isOpen() && SettingsPanel.handleBack(e)) return true;
     if (
       !SettingsPanel.isOpen() &&
       !status.classList.contains("hidden") &&

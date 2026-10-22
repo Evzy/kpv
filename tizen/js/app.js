@@ -185,7 +185,7 @@
       e.preventDefault();
       return true;
     }
-    if (SettingsPanel.handleBack(e)) return true;
+    if (SettingsPanel.isOpen() && SettingsPanel.handleBack(e)) return true;
     if (
       !SettingsPanel.isOpen() &&
       !status.classList.contains("hidden") &&

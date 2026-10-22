@@ -111,6 +111,18 @@
       "<p>Installed shell: <code>" +
       WGT_SHELL_VERSION +
       "</code></p>";
+    try {
+      document.body.classList.remove("settings-open");
+      var settings = document.getElementById("settings");
+      if (settings) {
+        settings.classList.add("hidden");
+        settings.setAttribute("aria-hidden", "true");
+      }
+      var browse = document.getElementById("browse");
+      if (browse) browse.classList.remove("hidden");
+    } catch (_) {
+      /* ignore */
+    }
     document.body.appendChild(wrap);
   }
 
