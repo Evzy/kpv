@@ -17,6 +17,46 @@ const SettingsPanel = (() => {
   /** @type {(url: string) => void} */
   let onSaved = () => {};
 
+  function textFields() {
+    return [input, companionPhone, companionPin, testHlsInput].filter(Boolean);
+  }
+
+  /** TV browsers jump into the first <input>; keep fields inert until user presses OK. */
+  function lockTextFields() {
+    for (const el of textFields()) {
+      el.readOnly = true;
+      el.tabIndex = -1;
+    }
+  }
+
+  function unlockTextField(el) {
+    lockTextFields();
+    el.readOnly = false;
+    el.tabIndex = 0;
+  }
+
+  function blurTextFields() {
+    for (const el of textFields()) {
+      try {
+        el.blur();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  }
+
+  function isTextEntryActive() {
+    const active = document.activeElement;
+    if (textFields().includes(active)) return true;
+    return textFields().some((el) => !el.readOnly);
+  }
+
+  function dismissTextEntry() {
+    blurTextFields();
+    lockTextFields();
+    applyRowFocus();
+  }
+
   function isOpen() {
     return panel && !panel.classList.contains("hidden");
   }
@@ -55,6 +95,8 @@ const SettingsPanel = (() => {
   }
 
   function applyRowFocus() {
+    blurTextFields();
+    lockTextFields();
     const list = focusables();
     if (!list.length) return;
     if (rowIndex < 0) rowIndex = 0;
@@ -200,6 +242,7 @@ const SettingsPanel = (() => {
       return;
     }
     if (cur === input || cur === companionPhone || cur === companionPin || cur === testHlsInput) {
+      unlockTextField(cur);
       cur.focus();
       showHint("Keyboard open — Back closes keyboard, then ↑↓ to move.");
     }
@@ -234,6 +277,8 @@ const SettingsPanel = (() => {
 
     document.body.classList.add("settings-open");
     rowIndex = 0;
+    lockTextFields();
+    blurTextFields();
     updateSiteUrlDisplay();
     applyRowFocus();
     if (typeof RemoteGuide !== "undefined") {
@@ -257,6 +302,8 @@ const SettingsPanel = (() => {
     if (typeof RemoteGuide !== "undefined") {
       RemoteGuide.say("Press ↑ for Refresh and Settings (gear)");
     }
+    lockTextFields();
+    blurTextFields();
     for (const el of focusables()) {
       const wrap = rowWrap(el);
       if (wrap) wrap.classList.remove("settings-row--active");
@@ -268,11 +315,9 @@ const SettingsPanel = (() => {
     if (!isOpen()) return false;
     const code = e.keyCode;
 
-    if (document.activeElement === input || document.activeElement === companionPhone ||
-        document.activeElement === companionPin || document.activeElement === testHlsInput) {
+    if (isTextEntryActive()) {
       if (TvKeys.isBack(e)) {
-        document.activeElement.blur();
-        applyRowFocus();
+        dismissTextEntry();
         e.preventDefault();
         return true;
       }
@@ -301,10 +346,8 @@ const SettingsPanel = (() => {
 
   function handleBack(e) {
     if (!isOpen()) return false;
-    const active = document.activeElement;
-    if (active === input || active === companionPhone || active === companionPin || active === testHlsInput) {
-      active.blur();
-      applyRowFocus();
+    if (isTextEntryActive()) {
+      dismissTextEntry();
       e.preventDefault();
       return true;
     }
@@ -335,6 +378,16 @@ const SettingsPanel = (() => {
     });
     btnCancel.addEventListener("click", close);
     if (btnTestPlay) btnTestPlay.addEventListener("click", openTestPlayback);
+
+    lockTextFields();
+    for (const el of textFields()) {
+      el.addEventListener("focusin", () => {
+        if (!isOpen() || el.readOnly) {
+          el.blur();
+          if (isOpen()) applyRowFocus();
+        }
+      });
+    }
   }
 
   return { init, open, close, isOpen, handleBack, handleKeyDown };
