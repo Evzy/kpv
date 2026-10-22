@@ -8,7 +8,14 @@
 
 const http = require("http");
 const zlib = require("zlib");
+const path = require("path");
+const { createRequire } = require("module");
 const { URL } = require("url");
+const {
+  isStreamLive,
+  sortCategoriesLiveFirst,
+  sortChannelsLiveFirst,
+} = createRequire(path.join(__dirname, "server.js"))("../scripts/stream-live.mjs");
 
 const PORT = Number(process.env.PORT || 8765);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -115,8 +122,22 @@ const MOCK_CHANNELS = [
 
 const CHANNEL_BY_URI = Object.fromEntries(MOCK_CHANNELS.map((c) => [c.uri, c]));
 
-function streamEntry(req, channel) {
-  return {
+function mockSchedule(channel, nowSec) {
+  if (channel.tag.includes("24/7")) {
+    return { starts_at: 0, ends_at: 0, always_live: 1 };
+  }
+  let h = 0;
+  for (let i = 0; i < channel.uri.length; i++) h = (h * 31 + channel.uri.charCodeAt(i)) >>> 0;
+  const live = (h + Math.floor(nowSec / 1800)) % 2 === 0;
+  if (live) {
+    return { starts_at: nowSec - 900, ends_at: nowSec + 7200, always_live: 0 };
+  }
+  return { starts_at: nowSec + 86_400, ends_at: nowSec + 90_000, always_live: 0 };
+}
+
+function streamEntry(req, channel, nowSec) {
+  const sched = mockSchedule(channel, nowSec);
+  const entry = {
     id: channel.uri.length + 1000,
     name: channel.name,
     tag: channel.tag,
@@ -125,26 +146,30 @@ function streamEntry(req, channel) {
     blurhash: "",
     colors: ["#12151E", "#12151E"],
     uri_name: channel.uri,
-    starts_at: 0,
-    ends_at: 0,
-    always_live: channel.tag.includes("24/7") ? 1 : 0,
+    starts_at: sched.starts_at,
+    ends_at: sched.ends_at,
+    always_live: sched.always_live,
     locale: "en",
     category_name: channel.category,
     iframe: "",
     substreams: [],
-    viewers: String(Math.floor(Math.random() * 5)),
+    viewers: isStreamLive({ ...sched }, nowSec) ? String(1 + (sched.always_live ? 2 : 0)) : "0",
   };
+  return { ...entry, isLive: isStreamLive(entry, nowSec) };
 }
 
 function catalog(req) {
   const origin = baseUrl(req);
+  const nowSec = Math.floor(Date.now() / 1000);
   const embed = (uri) => `${origin}/embed/${uri}`;
   const withIframe = (entry) => ({ ...entry, iframe: embed(entry.uri_name) });
 
   const categoryOrder = ["Pasture Premier", "Dairy Division", "24/7 Grazing"];
-  const streams = categoryOrder.map((category, index) => {
-    const items = MOCK_CHANNELS.filter((c) => c.category === category).map((c) =>
-      withIframe(streamEntry(req, c)),
+  const blocks = categoryOrder.map((category, index) => {
+    const items = sortChannelsLiveFirst(
+      MOCK_CHANNELS.filter((c) => c.category === category).map((c) =>
+        withIframe(streamEntry(req, c, nowSec)),
+      ),
     );
     return {
       category,
@@ -154,7 +179,24 @@ function catalog(req) {
     };
   });
 
-  return { success: true, timestamp: Date.now(), streams };
+  const categories = sortCategoriesLiveFirst(
+    blocks.map((block) => ({
+      name: block.category,
+      channels: block.streams.map((s) => ({
+        title: s.name,
+        tag: s.tag,
+        isLive: s.isLive,
+        ...s,
+      })),
+    })),
+  ).map((cat, i) => ({
+    category: cat.name,
+    id: blocks.find((b) => b.category === cat.name)?.id ?? i + 1,
+    always_live: cat.name === "24/7 Grazing",
+    streams: cat.channels,
+  }));
+
+  return { success: true, timestamp: nowSec, streams: categories };
 }
 
 function streamDetail(req, uri) {
@@ -200,10 +242,10 @@ function homePage(req) {
   const sections = cat.streams
     .map((block) => {
       const cards = block.streams
-        .map(
-          (s) =>
-            `<a class="card" href="/live/${s.uri_name}"><img src="${s.poster}" alt=""/><span class="t">${s.name}</span><span class="g">${s.tag}</span></a>`,
-        )
+        .map((s) => {
+          const liveCls = s.isLive ? " card--live" : "";
+          return `<a class="card${liveCls}" href="/live/${s.uri_name}"><span class="wrap"><img src="${s.poster}" alt=""/><span class="dot" aria-hidden="true"></span></span><span class="t">${s.name}</span><span class="g">${s.tag}</span></a>`;
+        })
         .join("");
       return `<section><h2>${block.category}</h2><div class="row">${cards}</div></section>`;
     })
@@ -215,7 +257,10 @@ function homePage(req) {
   h2{font-size:22px;margin:28px 0 12px}
   .row{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px}
   .card{display:block;width:176px;flex:0 0 auto;background:#12151e;border-radius:10px;padding:6px;text-decoration:none;color:inherit}
+  .card .wrap{position:relative;display:block}
   .card img{width:100%;height:99px;object-fit:cover;border-radius:6px;background:#1a1f2b}
+  .card .dot{display:none;position:absolute;top:8px;right:8px;width:12px;height:12px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444}
+  .card--live .dot{display:block}
   .t{display:block;font-weight:700;font-size:14px;margin-top:8px}
   .g{display:block;font-size:12px;color:#9ca3af;margin-top:2px}
 </style></head><body>

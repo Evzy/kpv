@@ -9,4 +9,6 @@ data class ChannelListing(
     val posterUrl: String,
     /** Full iframe URL from the catalog API when present. */
     val playerIframeUrl: String = "",
+    /** On-air now (catalog-style schedule or always_live). */
+    val isLive: Boolean = false,
 )

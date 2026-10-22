@@ -658,7 +658,48 @@ const StreamResolve = (() => {
 })();
 
 
-/* global Site */
+/* global window */
+const StreamLive = (() => {
+  function isStreamLive(stream, nowSec) {
+    const now = Number(nowSec) || Math.floor(Date.now() / 1000);
+    const always = stream.always_live === 1 || stream.always_live === true;
+    if (always) return true;
+    const start = Number(stream.starts_at) || 0;
+    const end = Number(stream.ends_at) || 0;
+    if (start > 0 && end > 0) return now >= start && now <= end;
+    if (stream.isLive === true || stream.is_live === true) return true;
+    return false;
+  }
+
+  function sortChannelsLiveFirst(channels) {
+    const live = [];
+    const rest = [];
+    for (const ch of channels) {
+      if (ch.isLive) live.push(ch);
+      else rest.push(ch);
+    }
+    return live.concat(rest);
+  }
+
+  function sortCategoriesLiveFirst(categories) {
+    const withSorted = categories.map((cat) => ({
+      ...cat,
+      channels: sortChannelsLiveFirst(cat.channels || []),
+    }));
+    const withLive = [];
+    const without = [];
+    for (const cat of withSorted) {
+      if ((cat.channels || []).some((c) => c.isLive)) withLive.push(cat);
+      else without.push(cat);
+    }
+    return withLive.concat(without);
+  }
+
+  return { isStreamLive, sortChannelsLiveFirst, sortCategoriesLiveFirst };
+})();
+
+
+/* global Site, StreamLive */
 const Catalog = (() => {
   async function load() {
     if (typeof Companion !== "undefined" && Companion.isActive()) {
@@ -686,6 +727,7 @@ const Catalog = (() => {
   }
 
   function parse(data) {
+    const nowSec = Number(data.timestamp) || Math.floor(Date.now() / 1000);
     const blocks = data.streams || [];
     const out = [];
     for (const block of blocks) {
@@ -707,11 +749,14 @@ const Catalog = (() => {
           iframe: s.iframe || "",
           hlsUrl: hls.startsWith("http") ? hls : "",
           referer: (s.referer || "").trim(),
+          isLive: StreamLive.isStreamLive(s, nowSec),
         });
       }
-      if (channels.length) out.push({ name, channels });
+      if (channels.length) {
+        out.push({ name, channels: StreamLive.sortChannelsLiveFirst(channels) });
+      }
     }
-    return out;
+    return StreamLive.sortCategoriesLiveFirst(out);
   }
 
   return { load, parse };
@@ -1592,9 +1637,12 @@ const SettingsPanel = (() => {
       for (const ch of cat.channels) {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "card";
+        btn.className = ch.isLive ? "card card--live" : "card";
         btn.innerHTML = `
-          <img src="${escapeAttr(ch.poster)}" alt="" loading="lazy" />
+          <span class="card-poster-wrap">
+            <img src="${escapeAttr(ch.poster)}" alt="" loading="lazy" />
+            <span class="live-dot" aria-hidden="true"></span>
+          </span>
           <div class="title">${escapeHtml(ch.title)}</div>
           <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
         btn.addEventListener("click", () => Player.play(ch));

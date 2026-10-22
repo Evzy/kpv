@@ -1,4 +1,4 @@
-/* global Site */
+/* global Site, StreamLive */
 const Catalog = (() => {
   async function load() {
     if (typeof Companion !== "undefined" && Companion.isActive()) {
@@ -26,6 +26,7 @@ const Catalog = (() => {
   }
 
   function parse(data) {
+    const nowSec = Number(data.timestamp) || Math.floor(Date.now() / 1000);
     const blocks = data.streams || [];
     const out = [];
     for (const block of blocks) {
@@ -47,11 +48,14 @@ const Catalog = (() => {
           iframe: s.iframe || "",
           hlsUrl: hls.startsWith("http") ? hls : "",
           referer: (s.referer || "").trim(),
+          isLive: StreamLive.isStreamLive(s, nowSec),
         });
       }
-      if (channels.length) out.push({ name, channels });
+      if (channels.length) {
+        out.push({ name, channels: StreamLive.sortChannelsLiveFirst(channels) });
+      }
     }
-    return out;
+    return StreamLive.sortCategoriesLiveFirst(out);
   }
 
   return { load, parse };

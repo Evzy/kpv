@@ -22,6 +22,8 @@ object StreamCardBinder {
     ) {
         view.findViewById<TextView>(R.id.title).text = channel.title
         view.findViewById<TextView>(R.id.tag).text = channel.tag.ifBlank { "Live" }
+        view.findViewById<View>(R.id.live_indicator).visibility =
+            if (channel.isLive) View.VISIBLE else View.GONE
         val poster = view.findViewById<ImageView>(R.id.poster)
         if (channel.posterUrl.isBlank()) {
             Glide.with(view).clear(poster)

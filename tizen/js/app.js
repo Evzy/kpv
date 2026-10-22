@@ -36,9 +36,12 @@
       for (const ch of cat.channels) {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "card";
+        btn.className = ch.isLive ? "card card--live" : "card";
         btn.innerHTML = `
-          <img src="${escapeAttr(ch.poster)}" alt="" loading="lazy" />
+          <span class="card-poster-wrap">
+            <img src="${escapeAttr(ch.poster)}" alt="" loading="lazy" />
+            <span class="live-dot" aria-hidden="true"></span>
+          </span>
           <div class="title">${escapeHtml(ch.title)}</div>
           <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
         btn.addEventListener("click", () => Player.play(ch));

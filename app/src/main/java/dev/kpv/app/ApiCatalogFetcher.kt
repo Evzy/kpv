@@ -20,6 +20,7 @@ object ApiCatalogFetcher {
 
     private fun parse(body: String): List<StreamCategory>? {
         val root = JSONObject(body)
+        val nowSec = root.optLong("timestamp", System.currentTimeMillis() / 1000L)
         val blocks = root.optJSONArray("streams") ?: return null
         val categories = ArrayList<StreamCategory>(blocks.length())
         for (i in 0 until blocks.length()) {
@@ -43,10 +44,11 @@ object ApiCatalogFetcher {
                     pageUrl = SiteConfig.livePageUrl(uri),
                     posterUrl = stream.optString("poster"),
                     playerIframeUrl = iframe,
+                    isLive = StreamLive.isLive(stream, nowSec),
                 )
             }
             if (channels.isNotEmpty()) categories += StreamCategory(name, channels)
         }
-        return categories.takeIf { it.isNotEmpty() }
+        return StreamLive.sortCategories(categories).takeIf { it.isNotEmpty() }
     }
 }

@@ -13,6 +13,7 @@ const jsOrder = [
   "companion.js",
   "playback-cache.js",
   "stream-resolve.js",
+  "stream-live.js",
   "catalog.js",
   "player.js",
   "tv-nav.js",
