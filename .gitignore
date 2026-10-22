@@ -25,6 +25,7 @@ tizen/sniff.js
 tizen/*.js
 !tizen/js/
 !tizen/scripts/
+!tizen/generate-icon.js
 tizen/hls.min.js
 /KPV.wgt
 /KPV-v*-debug.apk
