@@ -1,6 +1,6 @@
 /* global Site */
 /**
- * Resolve a playable HLS URL the way IPTV Tizen apps do: API first, optional LAN resolver.
+ * Resolve a playable HLS URL: playback cache, then site API, then the paired phone companion.
  * No in-widget JW/embed engine on the default path (testable without a TV).
  */
 const StreamResolve = (() => {
