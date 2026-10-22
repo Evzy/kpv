@@ -102,7 +102,7 @@ const TvUpdate = (() => {
     if (!latest) {
       return { running, cached, latest: "", status: "unknown" };
     }
-    if (compare(latest, running) <= 0 && compare(latest, cached) <= 0) {
+    if (compare(latest, running) <= 0) {
       return { running, cached, latest, status: "current" };
     }
     return { running, cached, latest, status: "update-available" };

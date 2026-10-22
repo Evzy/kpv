@@ -179,35 +179,88 @@
     });
   }
 
-  function writeFileToDir(dir, name, blob) {
-    return new Promise(function (resolve, reject) {
-      dir.createFile(
-        name,
-        true,
-        function (file) {
-          file.openStream(
-            "w",
-            function (stream) {
-              var reader = new FileReader();
-              reader.onload = function () {
-                try {
-                  stream.write(reader.result);
-                  stream.close();
-                  resolve(file.toURI());
-                } catch (err) {
-                  reject(err);
-                }
-              };
-              reader.onerror = reject;
-              reader.readAsArrayBuffer(blob);
-            },
-            reject,
-            "UTF-8",
-          );
-        },
-        reject,
-      );
+  function deleteCacheEntry(dir, name) {
+    return new Promise(function (resolve) {
+      try {
+        dir.deleteFile(name, resolve, resolve);
+      } catch (_) {
+        resolve();
+      }
     });
+  }
+
+  function clearCacheDir(dir) {
+    return new Promise(function (resolve) {
+      try {
+        dir.listFiles(
+          function (files) {
+            if (!files || !files.length) {
+              resolve();
+              return;
+            }
+            var i = 0;
+            function next() {
+              if (i >= files.length) {
+                resolve();
+                return;
+              }
+              var entry = files[i++];
+              var fname = entry && entry.name ? entry.name : String(entry);
+              dir.deleteFile(fname, next, next);
+            }
+            next();
+          },
+          function () {
+            resolve();
+          },
+        );
+      } catch (_) {
+        resolve();
+      }
+    });
+  }
+
+  function writeFileToDir(dir, name, blob) {
+    return deleteCacheEntry(dir, name).then(function () {
+      return new Promise(function (resolve, reject) {
+        dir.createFile(
+          name,
+          false,
+          function (file) {
+            file.openStream(
+              "w",
+              function (stream) {
+                var reader = new FileReader();
+                reader.onload = function () {
+                  try {
+                    stream.write(reader.result);
+                    stream.close();
+                    resolve(file.toURI());
+                  } catch (err) {
+                    reject(err);
+                  }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(blob);
+              },
+              reject,
+            );
+          },
+          reject,
+        );
+      });
+    });
+  }
+
+  function runningBundleVersion() {
+    try {
+      if (typeof KPV_APP_VERSION === "string" && KPV_APP_VERSION) {
+        return KPV_APP_VERSION;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    return readCachedVersion();
   }
 
   function applyBundleZip(arrayBuffer, expectedSha256) {
@@ -232,6 +285,10 @@
 
   function extractZipToCache(zip) {
     return resolveDocumentsDir().then(function (dir) {
+      return clearCacheDir(dir).then(function () {
+        return dir;
+      });
+    }).then(function (dir) {
       var names = Object.keys(zip.files).filter(function (n) {
         return !zip.files[n].dir;
       });
@@ -277,9 +334,9 @@
       showBlockingScreen(manifest);
       return;
     }
-    var cached = readCachedVersion();
+    var running = runningBundleVersion();
     var remote = String(manifest.bundleVersion || "");
-    if (!remote || compareTriple(parseTriple(remote), parseTriple(cached)) <= 0) {
+    if (!remote || compareTriple(parseTriple(remote), parseTriple(running)) <= 0) {
       return;
     }
     xhrGet(manifest.bundleUrl, "arraybuffer")
