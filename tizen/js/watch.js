@@ -1,4 +1,4 @@
-/* global AvplayPlay, Site, StreamResolve, TizenPlay, TvKeys, PlaybackCache, Companion */
+/* global AvplayPlay, Site, StreamResolve, TizenPlay, TvKeys, PlaybackCache */
 (function watchPage() {
   function isBackKey(e) {
     if (typeof TvKeys !== "undefined" && TvKeys.isBack(e)) return true;
@@ -156,34 +156,20 @@
 
   function canReresolve() {
     if (!payload.uri) return false;
-    const canPhone = typeof Companion !== "undefined" && Companion.isActive();
-    const embed = payload.embedUrl || Site.embedFallback(payload.uri);
-    return canPhone || StreamResolve.tvResolveAvailable(embed);
+    return StreamResolve.tvResolveAvailable(payload.embedUrl || Site.embedFallback(payload.uri));
   }
 
   function noStreamMessage(resolved) {
     const lines = [
       "No direct HLS URL for this channel.",
       "",
-      "Tizen playback needs a .m3u8 (site API, TV decoder, paired phone companion, or test stream).",
+      "The TV decoder could not get a playlist from the embed page.",
     ];
-    if (resolved.tvNote) lines.push("", resolved.tvNote);
-    if (typeof Companion !== "undefined" && Companion.isModeOn() && !Companion.isActive()) {
-      lines.push("", "Companion is on but TV is not paired — enter PIN from the phone in Settings.");
-    } else if (Companion.isActive() && !resolved.usedResolver) {
-      lines.push("", "Phone companion did not return a playlist.");
-      if (resolved.companionNote) {
-        lines.push(resolved.companionNote);
-      } else {
-        lines.push("Keep KPV on the channel list on the phone (up to ~45s), then try again.");
-      }
-    } else if (!Companion.isModeOn()) {
-      lines.push("", "Settings → enable Phone companion and pair with the PIN shown on Android KPV.");
-    }
+    if (resolved.tvNote) lines.push(resolved.tvNote);
     if (!StreamResolve.embedSniffEnabled()) {
       lines.push("", "Advanced: localStorage kpv_use_embed_sniff=1 enables embed sniff.");
     }
-    lines.push("", "Press Back.");
+    lines.push("", "Press Play/OK to retry · Back for channels.");
     return lines.join("\n");
   }
 
@@ -208,13 +194,10 @@
     return result;
   }
 
-  async function resolveAndPlay(forcePhone) {
-    if (forcePhone && payload.uri) {
+  async function resolveAndPlay(fresh) {
+    if (fresh && payload.uri) {
       PlaybackCache.clear(payload.uri);
-    }
-
-    if (forcePhone && payload.uri) {
-      step("Requesting a fresh playlist…");
+      step("Getting a fresh link…");
     } else if (payload.uri && PlaybackCache.get(payload.uri)) {
       step(`Loading ${payload.title} (cached)…`);
     } else {
@@ -223,20 +206,13 @@
 
     Site.load();
 
-    if (!forcePhone && typeof Companion !== "undefined" && Companion.isActive() && payload.uri) {
-      const cached = PlaybackCache.get(payload.uri);
-      if (!cached) {
-        step("Asking phone for playlist… (can take up to 45 seconds)");
-      }
-    }
-
     const resolved = await StreamResolve.resolveForWatch(
       {
         uri: payload.uri,
-        hlsUrl: forcePhone ? "" : payload.hlsUrl,
+        hlsUrl: fresh ? "" : payload.hlsUrl,
         embedUrl: payload.embedUrl,
       },
-      { forcePhone, onStep: step },
+      { skipCache: fresh, onStep: step },
     );
 
     if (!resolved.hls.startsWith("http")) {
@@ -251,7 +227,7 @@
     try {
       await startAvplay(resolved);
     } catch (e) {
-      if (!forcePhone && resolved.fromCache && canReresolve()) {
+      if (!fresh && resolved.fromCache && canReresolve()) {
         PlaybackCache.clear(payload.uri);
         await resolveAndPlay(true);
         return;
@@ -293,9 +269,9 @@
     recovering = false;
   }
 
-  async function restartFromNetwork(forcePhone) {
+  async function restartFromNetwork(fresh) {
     if (recovering) return;
-    await resolveAndPlay(Boolean(forcePhone));
+    await resolveAndPlay(Boolean(fresh));
   }
 
   async function run() {

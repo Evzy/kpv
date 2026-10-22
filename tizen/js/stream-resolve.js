@@ -1,7 +1,7 @@
 /* global Site, GasmResolve */
 /**
  * Resolve a playable HLS URL: playback cache, then site API, then the embed site's decoder
- * run on the TV (GasmResolve), then the paired phone companion.
+ * run on the TV (GasmResolve).
  */
 const StreamResolve = (() => {
   const STORAGE_SNIFF = "kpv_use_embed_sniff";
@@ -44,10 +44,6 @@ const StreamResolve = (() => {
     return Site.siteOrigin() || "";
   }
 
-  function companionReady() {
-    return typeof Companion !== "undefined" && Companion.isActive();
-  }
-
   function tvResolveAvailable(embedUrl) {
     return typeof GasmResolve !== "undefined" && GasmResolve.canResolve(embedUrl);
   }
@@ -85,90 +81,23 @@ const StreamResolve = (() => {
     return null;
   }
 
-  const RESOLVE_TIMEOUT_MS = 48_000;
-
-  function streamApiPath(uri) {
-    const segments = String(uri || "")
-      .split("/")
-      .filter(Boolean)
-      .map((s) => encodeURIComponent(s));
-    return `/api/streams/${segments.join("/")}`;
-  }
-
-  /** Paired companion: ask phone for this uri only (API → cache → embed sniff). */
-  async function fetchFromCompanion(uri, embedUrl, refresh) {
-    if (!companionReady() || !uri) return { hls: "", note: "" };
-    const q = new URLSearchParams();
-    q.set("uri", uri);
-    if (embedUrl.startsWith("http")) q.set("embed", embedUrl);
-    if (refresh) q.set("refresh", "1");
-
-    try {
-      const apiQ = refresh ? "?resolve=1&refresh=1" : "?resolve=1";
-      const detail = await Companion.fetchJson(
-        `${streamApiPath(uri)}${apiQ}`,
-        undefined,
-        RESOLVE_TIMEOUT_MS,
-      );
-      const fromApi = pickHlsFromPayload(detail);
-      if (fromApi.startsWith("http") && isHls(fromApi)) {
-        return { hls: fromApi, note: "" };
-      }
-    } catch (e) {
-      const apiMsg = (e && e.message) || "";
-      if (apiMsg.includes("not paired")) {
-        return { hls: "", note: apiMsg };
-      }
-      /* fall through to /resolve */
-    }
-
-    try {
-      const body = await Companion.fetchJson(
-        `/resolve?${q.toString()}`,
-        undefined,
-        RESOLVE_TIMEOUT_MS,
-      );
-      const raw = (body.m3u8 || body.url || body.hls || "").trim();
-      if (raw.startsWith("http") && isHls(raw)) {
-        return { hls: raw, note: "" };
-      }
-      return {
-        hls: "",
-        note: body.error || "Phone answered but sent no .m3u8 playlist URL.",
-      };
-    } catch (e) {
-      const msg = (e && e.message) || "Companion request failed";
-      return { hls: "", note: msg };
-    }
-  }
-
-  /** Fire-and-forget: phone starts resolving this channel before watch.html loads. */
-  function prepareOnPhone(uri, embedUrl) {
-    if (!companionReady() || !uri) return;
-    const q = new URLSearchParams();
-    q.set("uri", uri);
-    if (embedUrl && embedUrl.startsWith("http")) q.set("embed", embedUrl);
-    Companion.fetchJson(`/prepare?${q.toString()}`, undefined, 4_000).catch(() => {});
-  }
-
   /**
-   * @returns {Promise<{ hls: string, embed: string, referer: string, streamData: object|null, usedResolver: boolean }>}
+   * @param {{ uri?: string, hlsUrl?: string, embedUrl?: string }} opts
+   * @param {{ skipCache?: boolean, onStep?: (msg: string) => void }} [resolveOpts]
+   * @returns {Promise<{ hls: string, embed: string, referer: string, streamData: object|null, usedTvResolver: boolean, fromCache: boolean, tvNote: string, embedSniffEnabled: boolean }>}
    */
   async function resolveForWatch(opts, resolveOpts) {
     const ro = resolveOpts || {};
-    const forcePhone = ro.forcePhone === true;
-    const skipCache = ro.skipCache === true || forcePhone;
+    const skipCache = ro.skipCache === true;
     const uri = (opts.uri || "").trim();
-    let hls = forcePhone ? "" : (opts.hlsUrl || "").trim();
+    let hls = (opts.hlsUrl || "").trim();
     let embed = (opts.embedUrl || "").trim();
     let streamData = null;
-    let usedResolver = false;
     let usedTvResolver = false;
     let fromCache = false;
-    let companionNote = "";
     let tvNote = "";
 
-    if (!forcePhone && !skipCache && uri && typeof PlaybackCache !== "undefined") {
+    if (!skipCache && uri && typeof PlaybackCache !== "undefined") {
       const cached = PlaybackCache.get(uri);
       if (cached && cached.hls) {
         hls = cached.hls;
@@ -186,14 +115,14 @@ const StreamResolve = (() => {
         embed,
         referer: refererCached,
         streamData: null,
-        usedResolver: false,
+        usedTvResolver: false,
         fromCache: true,
-        companionNote: "",
+        tvNote: "",
         embedSniffEnabled: embedSniffEnabled(),
       };
     }
 
-    if (!forcePhone && (!hls || !embed)) {
+    if (!hls || !embed) {
       streamData = await fetchStreamPayload(uri);
       if (!hls) hls = pickHlsFromPayload(streamData);
       if (!embed) {
@@ -212,13 +141,6 @@ const StreamResolve = (() => {
       usedTvResolver = Boolean(hls);
     }
 
-    if (!hls && uri && companionReady()) {
-      const fromPhone = await fetchFromCompanion(uri, embed, forcePhone);
-      hls = fromPhone.hls;
-      companionNote = fromPhone.note || "";
-      usedResolver = Boolean(hls);
-    }
-
     if (hls.startsWith("http")) {
       hls = await Site.resolveMediaUrl(hls);
     }
@@ -233,10 +155,8 @@ const StreamResolve = (() => {
       embed,
       referer,
       streamData,
-      usedResolver,
       usedTvResolver,
       fromCache,
-      companionNote,
       tvNote,
       embedSniffEnabled: embedSniffEnabled(),
     };
@@ -248,9 +168,6 @@ const StreamResolve = (() => {
     pickEmbedFromPayload,
     refererForPlay,
     fetchStreamPayload,
-    fetchFromCompanion,
-    prepareOnPhone,
-    companionReady,
     tvResolveAvailable,
     resolveForWatch,
     embedSniffEnabled,

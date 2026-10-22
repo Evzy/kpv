@@ -90,7 +90,6 @@ async function stagePackage({ version, appId, packageId, appName, hello }) {
     "embed-engine.js",
     "avplay-play.js",
     "site.js",
-    "companion.js",
     "playback-cache.js",
     "wasm-lower.js",
     "gasm-resolve.js",

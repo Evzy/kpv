@@ -20,7 +20,6 @@ const bundleFiles = [
   "embed-engine.js",
   "avplay-play.js",
   "site.js",
-  "companion.js",
   "playback-cache.js",
   "stream-resolve.js",
   "wasm-lower.js",

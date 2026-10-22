@@ -1,12 +1,8 @@
-/* global document, Site, TvNav, Companion, TvKeys */
+/* global document, Site, TvNav, TvKeys */
 const SettingsPanel = (() => {
   let panel;
   let browse;
   let input;
-  let companionMode;
-  let companionPhone;
-  let companionPin;
-  let companionStatus;
   let btnSave;
   let btnCancel;
   let btnTestPlay;
@@ -32,7 +28,7 @@ const SettingsPanel = (() => {
   }
 
   function textFields() {
-    return [input, companionPhone, companionPin].filter(Boolean);
+    return [input].filter(Boolean);
   }
 
   /** TV browsers jump into the first <input>; keep fields inert until user presses OK. */
@@ -137,20 +133,8 @@ const SettingsPanel = (() => {
     if (hint) hint.textContent = msg;
   }
 
-  function showCompanionStatus(msg) {
-    if (companionStatus) companionStatus.textContent = msg;
-  }
-
   function focusables() {
-    return [
-      input,
-      companionMode,
-      companionPhone,
-      companionPin,
-      btnSave,
-      btnCancel,
-      btnTestPlay,
-    ].filter(Boolean);
+    return [input, btnSave, btnCancel, btnTestPlay].filter(Boolean);
   }
 
   function updateSiteUrlDisplay() {
@@ -179,25 +163,15 @@ const SettingsPanel = (() => {
       if (wrap) wrap.classList.toggle("settings-row--active", i === rowIndex);
     }
     const cur = list[rowIndex];
-    const labels = {
-      [companionMode && companionMode.id]: "Phone companion — OK toggles on/off",
-      [input && input.id]: "Site URL — OK to type",
-      [companionPhone && companionPhone.id]: "Phone URL — OK to type",
-      [companionPin && companionPin.id]: "Pairing PIN — OK to type",
-    };
     let msg = "";
     if (cur === btnSave) {
-      msg = "OK — saves site URL, pairs phone (if PIN entered), reloads channels.";
+      msg = "OK — saves site URL and reloads channels.";
     } else if (cur === btnCancel) {
       msg = "OK here — close Settings without saving changes.";
     } else if (cur === btnTestPlay) {
       msg = "OK — test stream (optional).";
     } else if (cur === input) {
       msg = "OK — open keyboard and type your site (e.g. https://example.com). Back closes keyboard.";
-    } else if (cur === companionPin) {
-      msg = "OK — type 6-digit PIN from phone. Then ↓ to green Save box and OK.";
-    } else if (cur && cur.id && labels[cur.id]) {
-      msg = labels[cur.id];
     }
     showHint(msg);
     updateSiteUrlDisplay();
@@ -233,44 +207,6 @@ const SettingsPanel = (() => {
     }
     Site.saveSite(url);
     input.value = url;
-
-    const modeOn = companionMode && companionMode.checked;
-    const phoneBase = normalizeUrl(companionPhone ? companionPhone.value : "");
-
-    if (modeOn && typeof Companion !== "undefined") {
-      if (!phoneBase.startsWith("http")) {
-        rowIndex = focusables().indexOf(companionPhone);
-        applyRowFocus();
-        showHint("Companion on: enter the phone URL.");
-        return;
-      }
-      Companion.saveSettings(true, phoneBase, Companion.token());
-      const pin = (companionPin && companionPin.value) || "";
-      if (!Companion.isActive() && pin.length < 6) {
-        rowIndex = focusables().indexOf(companionPin);
-        applyRowFocus();
-        showHint("Enter the 6-digit PIN from Android KPV.");
-        return;
-      }
-      if (pin.length >= 6) {
-        try {
-          showCompanionStatus("Pairing…");
-          await Companion.pair(pin, "Samsung TV");
-          Companion.saveSettings(true, phoneBase, Companion.token());
-          companionPin.value = "";
-          showCompanionStatus("Paired with phone.");
-        } catch (e) {
-          showCompanionStatus("");
-          showHint(e.message || "Pairing failed.");
-          return;
-        }
-      }
-    } else if (typeof Companion !== "undefined") {
-      Companion.saveSettings(false, "", "");
-      Companion.clearToken();
-      showCompanionStatus("");
-    }
-
     close();
     onSaved(url);
   }
@@ -305,37 +241,17 @@ const SettingsPanel = (() => {
       openTestPlayback();
       return;
     }
-    if (cur === companionMode) {
-      companionMode.checked = !companionMode.checked;
-      return;
-    }
-    if (cur === input || cur === companionPhone || cur === companionPin) {
+    if (cur === input) {
       unlockTextField(cur);
       rowIndex = list.indexOf(cur);
       cur.focus();
-      showHint("Keyboard open — Done or Back closes keyboard · ↓ next row · Save to pair.");
+      showHint("Keyboard open — Done or Back closes keyboard · ↓ next row · Save to apply.");
     }
   }
 
   function open() {
     Site.load();
-    if (typeof Companion !== "undefined") {
-      Companion.load();
-      input.value = Site.siteOrigin();
-      if (companionMode) companionMode.checked = Companion.isModeOn();
-      if (companionPhone) companionPhone.value = Companion.baseUrl();
-      if (companionPin) companionPin.value = "";
-      if (Companion.isActive()) {
-        showCompanionStatus("Paired — streams come from the phone when needed.");
-      } else if (Companion.isModeOn()) {
-        showCompanionStatus("Companion on — enter PIN and Save to pair.");
-      } else {
-        showCompanionStatus("Companion off — TV uses the site API only.");
-      }
-    } else {
-      input.value = Site.siteOrigin();
-      showCompanionStatus("");
-    }
+    input.value = Site.siteOrigin();
 
     panel.classList.remove("hidden");
     panel.classList.add("settings--open");
@@ -352,7 +268,7 @@ const SettingsPanel = (() => {
     updateSiteUrlDisplay();
     applyRowFocus();
     if (typeof RemoteGuide !== "undefined") {
-      RemoteGuide.say("Site URL at top · companion in middle · teal Save box below PIN");
+      RemoteGuide.say("Site URL at top · teal Save box below");
     }
     if (typeof TvUpdate !== "undefined") {
       TvUpdate.fetchStatus().then(function (s) {
@@ -453,10 +369,6 @@ const SettingsPanel = (() => {
     panel = document.getElementById("settings");
     browse = document.getElementById("browse");
     input = document.getElementById("site-url");
-    companionMode = document.getElementById("companion-mode");
-    companionPhone = document.getElementById("companion-phone-url");
-    companionPin = document.getElementById("companion-pin");
-    companionStatus = document.getElementById("companion-status");
     btnSave = document.getElementById("btn-save");
     btnCancel = document.getElementById("btn-cancel");
     btnTestPlay = document.getElementById("btn-test-play");

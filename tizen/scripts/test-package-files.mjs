@@ -1,5 +1,5 @@
 // Every local <script src> / <link href> in a shipped page must also ship in the .wgt and the hot-update bundle.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,6 +38,21 @@ for (const [script, files] of Object.entries(lists)) {
 if (missing.length) {
   console.error("test-package-files: pages reference files that are not packaged:");
   for (const line of missing) console.error("  " + line);
+  process.exit(1);
+}
+
+// Phone pairing was removed in v1.0.43; nothing shipped may depend on it again.
+const sources = [
+  ...readdirSync(path.join(root, "js")).map((n) => path.join("js", n)),
+  "index.html",
+  "watch.html",
+  "sniff.html",
+  "hls-shell.html",
+];
+const companionRefs = sources.filter((rel) => /companion/i.test(readFileSync(path.join(root, rel), "utf8")));
+if (companionRefs.length) {
+  console.error("test-package-files: phone companion references remain in:");
+  for (const rel of companionRefs) console.error("  " + rel);
   process.exit(1);
 }
 console.log(`test-package-files: ok (${checked} refs)`);

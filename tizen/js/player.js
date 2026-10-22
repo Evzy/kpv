@@ -1,4 +1,4 @@
-/* global Site, StreamResolve, Companion, PlaybackCache */
+/* global Site, PlaybackCache */
 /**
  * TV playback: watch.html → direct .m3u8 → AVPlay → hls-shell (sky-iptv / TVapp style).
  */
@@ -126,16 +126,6 @@ const Player = (() => {
       }
     }
 
-    if (
-      typeof StreamResolve !== "undefined" &&
-      StreamResolve.companionReady() &&
-      channel.uri
-    ) {
-      const embed =
-        (channel.iframe && channel.iframe.startsWith("http") && channel.iframe) ||
-        "";
-      StreamResolve.prepareOnPhone(channel.uri, embed);
-    }
     const target = await resolvePlayTarget(channel);
     openWatchPage(channel, target);
   }

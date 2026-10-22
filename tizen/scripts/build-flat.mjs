@@ -17,7 +17,6 @@ const jsOrder = [
   "site.js",
   "tv-keys.js",
   "remote-guide.js",
-  "companion.js",
   "playback-cache.js",
   "stream-resolve.js",
   "stream-live.js",
@@ -42,7 +41,6 @@ await cp(path.join(root, "js", "wasm-lower.js"), path.join(root, "wasm-lower.js"
 await cp(path.join(root, "js", "gasm-resolve.js"), path.join(root, "gasm-resolve.js"));
 await cp(path.join(root, "js", "tizen-play.js"), path.join(root, "tizen-play.js"));
 await cp(path.join(root, "js", "site.js"), path.join(root, "site.js"));
-await cp(path.join(root, "js", "companion.js"), path.join(root, "companion.js"));
 await cp(path.join(root, "js", "tv-keys.js"), path.join(root, "tv-keys.js"));
 const hlsMin = path.join(root, "node_modules", "hls.js", "dist", "hls.min.js");
 try {
