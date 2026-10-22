@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.19";
+const KPV_APP_VERSION = "1.0.20";
 
 
 /* global window */
@@ -1684,7 +1684,16 @@ const SettingsPanel = (() => {
 (function init() {
   const verEl = document.getElementById("app-version");
   if (verEl && typeof KPV_APP_VERSION === "string" && KPV_APP_VERSION) {
-    verEl.textContent = `v${KPV_APP_VERSION}`;
+    var shellHint = "";
+    try {
+      var cached = localStorage.getItem("kpv_bundle_version");
+      if (cached && cached !== KPV_APP_VERSION) {
+        shellHint = " · bundle " + cached;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    verEl.textContent = "v" + KPV_APP_VERSION + shellHint;
   }
   if (!document.getElementById("kpv-tizen-catalog-fix")) {
     const fix = document.createElement("style");

@@ -90,10 +90,17 @@
     wrap.style.cssText =
       "position:fixed;inset:0;z-index:99999;background:#0a0e14;color:#e8eef5;font:24px/1.4 sans-serif;padding:48px;box-sizing:border-box;";
     var wgtUrl = (manifest && manifest.wgtUrl) || "";
+    var latest =
+      (manifest && manifest.bundleVersion) ||
+      "https://github.com/" + RELEASES_OWNER + "/" + RELEASES_REPO + "/releases/latest";
     wrap.innerHTML =
       "<h1 style='margin:0 0 24px;font-size:36px'>KPV update required</h1>" +
-      "<p>This TV needs a new <strong>KPV.wgt</strong> install (Developer Mode / USB / Apps2Samsung on PC).</p>" +
-      "<p>Download from GitHub Releases, then sideload over the existing app.</p>" +
+      "<p>Hot updates cannot move this TV past the version baked into the old widget (e.g. v1.0.16).</p>" +
+      "<p>Sideload a new <strong>KPV.wgt</strong> once (Apps2Samsung / USB). Latest app: <strong>" +
+      latest +
+      "</strong>, shell <strong>" +
+      (manifest && manifest.minWgtShell ? manifest.minWgtShell : "1.0.38") +
+      "+</strong>.</p>" +
       (wgtUrl
         ? "<p style='word-break:break-all'><a href='" +
           wgtUrl +
@@ -105,6 +112,16 @@
       WGT_SHELL_VERSION +
       "</code></p>";
     document.body.appendChild(wrap);
+  }
+
+  function usesLegacyMainScript() {
+    var list = document.querySelectorAll("script[src]");
+    for (var i = 0; i < list.length; i += 1) {
+      var src = list[i].getAttribute("src") || "";
+      if (src.indexOf("boot.js") >= 0) return false;
+      if (src.indexOf("main.js") >= 0) return true;
+    }
+    return false;
   }
 
   function showToast(msg) {
@@ -279,6 +296,15 @@
 
   function run() {
     if (entry === "watch") return;
+    if (usesLegacyMainScript()) {
+      showBlockingScreen({
+        wgtUrl:
+          "https://github.com/" + RELEASES_OWNER + "/" + RELEASES_REPO + "/releases/latest/download/KPV.wgt",
+        bundleVersion: "latest",
+        minWgtShell: "1.0.38",
+      });
+      return;
+    }
     runBackgroundUpdate();
   }
 
