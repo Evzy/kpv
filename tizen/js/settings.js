@@ -7,7 +7,6 @@ const SettingsPanel = (() => {
   let companionPhone;
   let companionPin;
   let companionStatus;
-  let testHlsInput;
   let btnSave;
   let btnCancel;
   let btnTestPlay;
@@ -33,7 +32,7 @@ const SettingsPanel = (() => {
   }
 
   function textFields() {
-    return [input, companionPhone, companionPin, testHlsInput].filter(Boolean);
+    return [input, companionPhone, companionPin].filter(Boolean);
   }
 
   /** TV browsers jump into the first <input>; keep fields inert until user presses OK. */
@@ -150,7 +149,6 @@ const SettingsPanel = (() => {
       companionPin,
       btnSave,
       btnCancel,
-      testHlsInput,
       btnTestPlay,
     ].filter(Boolean);
   }
@@ -186,7 +184,6 @@ const SettingsPanel = (() => {
       [input && input.id]: "Site URL — OK to type",
       [companionPhone && companionPhone.id]: "Phone URL — OK to type",
       [companionPin && companionPin.id]: "Pairing PIN — OK to type",
-      [testHlsInput && testHlsInput.id]: "Test stream URL — OK to type",
     };
     let msg = "";
     if (cur === btnSave) {
@@ -235,7 +232,6 @@ const SettingsPanel = (() => {
       return;
     }
     Site.saveSite(url);
-    Site.saveTestHls(normalizeUrl(testHlsInput.value));
     input.value = url;
 
     const modeOn = companionMode && companionMode.checked;
@@ -281,10 +277,7 @@ const SettingsPanel = (() => {
 
   function openTestPlayback() {
     Site.load();
-    const testUrl =
-      normalizeUrl(testHlsInput.value) ||
-      Site.testHlsUrl() ||
-      "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+    const testUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
     try {
       sessionStorage.setItem(
         "kpv_watch",
@@ -316,7 +309,7 @@ const SettingsPanel = (() => {
       companionMode.checked = !companionMode.checked;
       return;
     }
-    if (cur === input || cur === companionPhone || cur === companionPin || cur === testHlsInput) {
+    if (cur === input || cur === companionPhone || cur === companionPin) {
       unlockTextField(cur);
       rowIndex = list.indexOf(cur);
       cur.focus();
@@ -329,7 +322,6 @@ const SettingsPanel = (() => {
     if (typeof Companion !== "undefined") {
       Companion.load();
       input.value = Site.siteOrigin();
-      testHlsInput.value = Site.testHlsUrl();
       if (companionMode) companionMode.checked = Companion.isModeOn();
       if (companionPhone) companionPhone.value = Companion.baseUrl();
       if (companionPin) companionPin.value = "";
@@ -342,7 +334,6 @@ const SettingsPanel = (() => {
       }
     } else {
       input.value = Site.siteOrigin();
-      testHlsInput.value = Site.testHlsUrl();
       showCompanionStatus("");
     }
 
@@ -466,7 +457,6 @@ const SettingsPanel = (() => {
     companionPhone = document.getElementById("companion-phone-url");
     companionPin = document.getElementById("companion-pin");
     companionStatus = document.getElementById("companion-status");
-    testHlsInput = document.getElementById("test-hls-url");
     btnSave = document.getElementById("btn-save");
     btnCancel = document.getElementById("btn-cancel");
     btnTestPlay = document.getElementById("btn-test-play");

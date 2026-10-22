@@ -3,7 +3,6 @@ const Site = (() => {
   const STORAGE_KEY = "kpv_site_url";
   const STORAGE_API = "kpv_resolved_api";
   const STORAGE_RESOLVER = "kpv_resolver_url";
-  const STORAGE_TEST_HLS = "kpv_test_hls_url";
   let site = "";
   let resolvedApi = "";
   let resolvedEmbed = "";
@@ -13,13 +12,11 @@ const Site = (() => {
   }
 
   let resolver = "";
-  let testHls = "";
 
   function load() {
     site = normalize(localStorage.getItem(STORAGE_KEY) || "");
     resolvedApi = normalize(localStorage.getItem(STORAGE_API) || "");
     resolver = normalize(localStorage.getItem(STORAGE_RESOLVER) || "");
-    testHls = normalize(localStorage.getItem(STORAGE_TEST_HLS) || "");
     resolvedEmbed = "";
   }
 
@@ -68,18 +65,8 @@ const Site = (() => {
     else localStorage.removeItem(STORAGE_RESOLVER);
   }
 
-  function saveTestHls(url) {
-    testHls = normalize(url);
-    if (testHls) localStorage.setItem(STORAGE_TEST_HLS, testHls);
-    else localStorage.removeItem(STORAGE_TEST_HLS);
-  }
-
   function resolverOrigin() {
     return resolver;
-  }
-
-  function testHlsUrl() {
-    return testHls;
   }
 
   function siteOrigin() {
@@ -175,9 +162,7 @@ const Site = (() => {
     load,
     saveSite,
     saveResolver,
-    saveTestHls,
     resolverOrigin,
-    testHlsUrl,
     rememberApi,
     noteEmbedFromUrl,
     apiCandidates,
