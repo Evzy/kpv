@@ -13,6 +13,7 @@ await writeFile(
 );
 const jsOrder = [
   "app-version.js",
+  "bundle-cache.js",
   "site.js",
   "tv-keys.js",
   "remote-guide.js",

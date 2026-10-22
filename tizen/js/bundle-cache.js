@@ -51,66 +51,47 @@ var KpvBundleCache = (function () {
     return resolvePath(cacheRootPath(), "rw").catch(function () {
       return resolvePath("documents", "rw").then(function (doc) {
         return new Promise(function (resolve, reject) {
-          doc.createDirectory(ROOT, resolve, reject, false);
+          doc.createDirectory(
+            ROOT,
+            resolve,
+            function () {
+              resolvePath(cacheRootPath(), "rw").then(resolve, reject);
+            },
+            false,
+          );
         });
       });
     });
   }
 
-  function clearDirContents(dir) {
-    return new Promise(function (resolve) {
-      try {
-        dir.listFiles(
-          function (files) {
-            if (!files || !files.length) {
-              resolve();
+  /** New unique subfolder; retry with a new slug if Samsung reports a name collision. */
+  function createFreshSubdir(rootDir, version) {
+    return new Promise(function (resolve, reject) {
+      var attempts = 0;
+      function tryCreate() {
+        attempts += 1;
+        if (attempts > 12) {
+          reject(new Error("Could not create cache folder"));
+          return;
+        }
+        var slug = freshSlugForVersion(version);
+        rootDir.createDirectory(
+          slug,
+          function (dir) {
+            resolve({ dir: dir, slug: slug });
+          },
+          function (err) {
+            var msg = err && err.message ? String(err.message) : String(err || "");
+            if (/already exists|exist/i.test(msg) || attempts < 12) {
+              tryCreate();
               return;
             }
-            var i = 0;
-            function next() {
-              if (i >= files.length) {
-                resolve();
-                return;
-              }
-              var entry = files[i++];
-              var fname = entry && entry.name ? entry.name : String(entry);
-              deleteFileQuiet(dir, fname).then(next);
-            }
-            next();
+            reject(err || new Error("createDirectory failed"));
           },
-          function () {
-            resolve();
-          },
+          false,
         );
-      } catch (_) {
-        resolve();
       }
-    });
-  }
-
-  /** Open cache subfolder, clearing files if it already exists (orphan from failed extract). */
-  function openOrClearSubdir(rootDir, slug) {
-    return new Promise(function (resolve, reject) {
-      rootDir.createDirectory(
-        slug,
-        function (dir) {
-          clearDirContents(dir).then(function () {
-            resolve(dir);
-          });
-        },
-        function () {
-          resolvePath(dirPathForSlug(slug), "rw")
-            .then(function (dir) {
-              return clearDirContents(dir).then(function () {
-                resolve(dir);
-              });
-            })
-            .catch(function () {
-              rootDir.createDirectory(slug, resolve, reject, false);
-            });
-        },
-        true,
-      );
+      tryCreate();
     });
   }
 
@@ -185,11 +166,13 @@ var KpvBundleCache = (function () {
   }
 
   function extractZipToVersion(version, zip) {
-    var newSlug = freshSlugForVersion(version);
     var oldSlug = readStoredSlug();
+    var newSlug = "";
 
     return ensureRootDir().then(function (rootDir) {
-      return openOrClearSubdir(rootDir, newSlug).then(function (dir) {
+      return createFreshSubdir(rootDir, version).then(function (created) {
+        newSlug = created.slug;
+        var dir = created.dir;
         var names = Object.keys(zip.files).filter(function (n) {
           return !zip.files[n].dir;
         });
