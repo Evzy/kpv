@@ -7,7 +7,8 @@
   "scripts": {
     "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-kpv-icon.ps1",
     "build:flat": "node ./scripts/build-flat.mjs",
-    "package": "npm run icon && node ./scripts/build-flat.mjs && node ./scripts/embed-shell-version.mjs && node ./scripts/package-kpv-tizen.mjs",
+    "package": "node ./scripts/build-flat.mjs && node ./scripts/embed-shell-version.mjs && node ./scripts/package-kpv-tizen.mjs",
+    "package:local": "npm run icon && npm run package",
     "bundle:web": "node ./scripts/build-web-bundle.mjs",
     "package:hello": "node ./scripts/package-kpv-tizen.mjs --hello",
     "test:embed": "node ./scripts/test-embed-engine.mjs",
