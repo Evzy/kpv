@@ -20,6 +20,9 @@ object CastController {
     private var castContext: CastContext? = null
 
     @Volatile
+    private var appContext: Context? = null
+
+    @Volatile
     private var activeToken: String? = null
 
     private var sessionListenerRegistered = false
@@ -29,7 +32,9 @@ object CastController {
         override fun onSessionStarted(session: CastSession, sessionId: String) = Unit
         override fun onSessionStartFailed(session: CastSession, error: Int) = Unit
         override fun onSessionEnding(session: CastSession) = Unit
-        override fun onSessionEnded(session: CastSession, error: Int) = releaseRelay()
+        override fun onSessionEnded(session: CastSession, error: Int) {
+            releaseRelay(appContext)
+        }
         override fun onSessionResuming(session: CastSession, sessionId: String) = Unit
         override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) = Unit
         override fun onSessionResumeFailed(session: CastSession, error: Int) = Unit
@@ -44,6 +49,7 @@ object CastController {
         }
         val task: Task<CastContext> = CastContext.getSharedInstance(context.applicationContext, executor)
         task.addOnSuccessListener { ctx ->
+            appContext = context.applicationContext
             castContext = ctx
             if (!sessionListenerRegistered) {
                 ctx.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
@@ -67,6 +73,7 @@ object CastController {
         }
         if (!isConnected()) return false
         CastRelayServer.ensureStarted()
+        CastRelayForegroundService.start(context.applicationContext)
         val token = CastRelayServer.register(stream) ?: run {
             Toast.makeText(context, R.string.cast_relay_failed, Toast.LENGTH_LONG).show()
             return false
@@ -90,21 +97,25 @@ object CastController {
         client.load(MediaLoadRequestData.Builder().setMediaInfo(mediaInfo).build())
             .setResultCallback { result ->
                 if (!result.status.isSuccess) {
-                    Log.w(TAG, "Cast load failed: ${result.status}")
+                    Log.w(TAG, "Cast load failed: ${result.status} code=${result.status.statusCode}")
                     Toast.makeText(context, R.string.cast_load_failed, Toast.LENGTH_LONG).show()
+                } else {
+                    Log.i(TAG, "Cast load OK for $title")
                 }
             }
-        Log.i(TAG, "Cast load $title -> $url")
+        Log.i(TAG, "Cast load request $title -> $url upstream=${stream.url.takeLast(72)} headers=${stream.headers.keys}")
         return true
     }
 
-    fun releaseRelay() {
+    fun releaseRelay(contextOverride: Context? = null) {
         activeToken?.let { CastRelayServer.removeToken(it) }
         activeToken = null
+        val ctx = contextOverride ?: appContext
+        ctx?.let { CastRelayForegroundService.stop(it) }
     }
 
-    fun shutdown() {
-        releaseRelay()
+    fun shutdown(context: Context) {
+        releaseRelay(context.applicationContext)
         CastRelayServer.stop()
     }
 }

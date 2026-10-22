@@ -433,7 +433,7 @@ class MainActivity : AppCompatActivity(), CompanionHost {
         TvCompanion.bindHost(null)
         TvCompanion.stop()
         if (isFinishing) {
-            CastController.shutdown()
+            CastController.shutdown(applicationContext)
         }
         super.onDestroy()
     }

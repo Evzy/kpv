@@ -33,6 +33,9 @@ class StreamResolver(
     companion object {
         private const val TIMEOUT_MS = 30_000L
         private const val NUDGE_INTERVAL_MS = 1_500L
+        private const val PLAYLIST_SETTLE_MS = 4_500L
+        private const val INDEX_DEFER_MS = 9_000L
+        private const val STRONG_PLAYLIST_SCORE = 75
         private val PLAYLIST_PATTERN = Regex("\\.m3u8(\\?|$)|[?&/]m3u8", RegexOption.IGNORE_CASE)
 
         private const val AUTOPLAY_JS = """
@@ -61,8 +64,27 @@ class StreamResolver(
     private var embedHost: String? = null
     private var userAgent: String? = null
     @Volatile private var finished = false
+    private var bestPlaylistUrl: String? = null
+    private var bestPlaylistHeaders: Map<String, String>? = null
+    private var bestPlaylistScore = Int.MIN_VALUE
+    private var firstPlaylistAtMs = 0L
 
-    private val timeout = Runnable { finish(null) }
+    private val timeout = Runnable {
+        val url = bestPlaylistUrl
+        val headers = bestPlaylistHeaders
+        finish(if (url != null && headers != null) withFreshCookies(url, headers) else null)
+    }
+    private val finalizePlaylist: Runnable = object : Runnable {
+        override fun run() {
+            val url = bestPlaylistUrl ?: return
+            val headers = bestPlaylistHeaders ?: return
+            if (shouldDeferIndexMaster(url)) {
+                handler.postDelayed(this, PLAYLIST_SETTLE_MS)
+                return
+            }
+            finish(withFreshCookies(url, headers))
+        }
+    }
     private val nudge = object : Runnable {
         override fun run() {
             val view = webView ?: return
@@ -144,7 +166,7 @@ class StreamResolver(
                 val url = request.url.toString()
                 if (!finished && PLAYLIST_PATTERN.containsMatchIn(url)) {
                     val headers = buildHeaders(url, request.requestHeaders)
-                    handler.post { finish(ResolvedStream(url, headers)) }
+                    handler.post { considerPlaylist(url, headers) }
                 }
                 return null
             }
@@ -152,6 +174,8 @@ class StreamResolver(
             override fun onPageFinished(view: WebView, url: String) {
                 handler.removeCallbacks(nudge)
                 handler.postDelayed(nudge, NUDGE_INTERVAL_MS)
+                handler.removeCallbacks(finalizePlaylist)
+                handler.postDelayed(finalizePlaylist, PLAYLIST_SETTLE_MS)
             }
         }
 
@@ -159,6 +183,38 @@ class StreamResolver(
         container.addView(view, FrameLayout.LayoutParams(320, 240))
         webView = view
         view.loadUrl(embedUrl, mapOf("Referer" to SiteConfig.siteReferer))
+    }
+
+    private fun considerPlaylist(url: String, headers: Map<String, String>) {
+        if (finished) return
+        if (firstPlaylistAtMs == 0L) firstPlaylistAtMs = SystemClock.elapsedRealtime()
+        val score = CastHlsRelay.scoreCapturedPlaylistUrl(url)
+        if (score > bestPlaylistScore) {
+            bestPlaylistScore = score
+            bestPlaylistUrl = url
+            bestPlaylistHeaders = headers
+        }
+        if (score >= STRONG_PLAYLIST_SCORE && !url.contains("index.m3u8", ignoreCase = true)) {
+            handler.removeCallbacks(finalizePlaylist)
+            finish(withFreshCookies(url, headers))
+            return
+        }
+        handler.removeCallbacks(finalizePlaylist)
+        handler.postDelayed(finalizePlaylist, PLAYLIST_SETTLE_MS)
+    }
+
+    private fun shouldDeferIndexMaster(url: String): Boolean {
+        if (!url.contains("index.m3u8", ignoreCase = true)) return false
+        if (bestPlaylistScore >= STRONG_PLAYLIST_SCORE) return false
+        val waited = SystemClock.elapsedRealtime() - firstPlaylistAtMs
+        return waited < INDEX_DEFER_MS
+    }
+
+    private fun withFreshCookies(url: String, headers: Map<String, String>): ResolvedStream {
+        CookieManager.getInstance().flush()
+        val out = headers.toMutableMap()
+        CookieManager.getInstance().getCookie(url)?.takeIf { it.isNotBlank() }?.let { out["Cookie"] = it }
+        return ResolvedStream(url, out)
     }
 
     private fun buildHeaders(url: String, requestHeaders: Map<String, String>): Map<String, String> {
@@ -171,7 +227,11 @@ class StreamResolver(
             headers["Origin"] = "${ref.scheme}://${ref.host}"
         }
         userAgent?.let { headers["User-Agent"] = it }
+        CookieManager.getInstance().flush()
         CookieManager.getInstance().getCookie(url)?.let { headers["Cookie"] = it }
+        requestHeaders.entries.firstOrNull { it.key.equals("Cookie", true) }?.value
+            ?.takeIf { it.isNotBlank() }
+            ?.let { headers["Cookie"] = it }
         return headers
     }
 
@@ -197,6 +257,7 @@ class StreamResolver(
     private fun cleanUp() {
         handler.removeCallbacks(timeout)
         handler.removeCallbacks(nudge)
+        handler.removeCallbacks(finalizePlaylist)
         webView?.let {
             it.stopLoading()
             container.removeView(it)
