@@ -4,6 +4,17 @@
   if (verEl && typeof KPV_APP_VERSION === "string" && KPV_APP_VERSION) {
     verEl.textContent = `v${KPV_APP_VERSION}`;
   }
+  if (!document.getElementById("kpv-tizen-catalog-fix")) {
+    const fix = document.createElement("style");
+    fix.id = "kpv-tizen-catalog-fix";
+    fix.textContent =
+      "button.card{color:#e5e7eb!important;margin-right:12px!important;-webkit-appearance:none}" +
+      "button.card .title{color:#e5e7eb!important}" +
+      "button.card .tag{color:#9ca3af!important}" +
+      ".row .card:last-child{margin-right:0!important}" +
+      ".category h2{color:#e5e7eb!important}";
+    document.head.appendChild(fix);
+  }
   TvNav.registerKeys();
   TvNav.wireTopBarFocusRing();
   CatalogNav.wire();

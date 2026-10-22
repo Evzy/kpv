@@ -183,10 +183,12 @@ body.settings-open .remote-guide {
 .category h2 {
   font-size: 22px;
   margin-bottom: 14px;
+  color: #e5e7eb;
 }
 
 .row {
   display: flex;
+  flex-wrap: nowrap;
   gap: 12px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -200,11 +202,21 @@ body.settings-open .remote-guide {
   width: 176px;
   height: 184px;
   padding: 6px;
+  margin: 0 12px 0 0;
   border-radius: 10px;
   background: #12151e;
   border: 2px solid transparent;
   cursor: pointer;
   text-align: left;
+  color: #e5e7eb;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+}
+
+.row .card:last-child {
+  margin-right: 0;
 }
 
 .card:focus,
@@ -290,10 +302,21 @@ body.settings-open .remote-guide {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.25;
+  color: #e5e7eb;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+button.card,
+button.card .title,
+button.card .tag {
+  color: #e5e7eb;
+}
+
+button.card .tag {
+  color: #9ca3af;
 }
 
 .card .tag {
