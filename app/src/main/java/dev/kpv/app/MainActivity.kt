@@ -131,7 +131,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
                     contentDescription = getString(R.string.cast)
                     visibility = android.view.View.GONE
                 }
-                CastButtonFactory.setUpMediaRouteButton(applicationContext, cast)
+                CastButtonFactory.setUpMediaRouteButton(this@MainActivity, cast)
                 castButton = cast
                 addView(cast, LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -431,7 +431,9 @@ class MainActivity : ComponentActivity(), CompanionHost {
         resolver?.cancel()
         TvCompanion.bindHost(null)
         TvCompanion.stop()
-        CastController.shutdown()
+        if (isFinishing) {
+            CastController.shutdown()
+        }
         super.onDestroy()
     }
 

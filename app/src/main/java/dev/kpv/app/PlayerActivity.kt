@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -114,7 +115,7 @@ class PlayerActivity : Activity() {
                     contentDescription = getString(R.string.cast)
                     visibility = android.view.View.GONE
                 }
-                CastButtonFactory.setUpMediaRouteButton(applicationContext, cast)
+                CastButtonFactory.setUpMediaRouteButton(this@PlayerActivity, cast)
                 castButton = cast
                 val margin = (16 * resources.displayMetrics.density).toInt()
                 addView(
@@ -161,9 +162,6 @@ class PlayerActivity : Activity() {
                 }
                 castSessionListener = listener
                 castContext.sessionManager.addSessionManagerListener(listener, CastSession::class.java)
-                if (castContext.sessionManager.currentCastSession?.isConnected == true) {
-                    handOffToCastIfReady()
-                }
             }
         }
     }
@@ -172,7 +170,7 @@ class PlayerActivity : Activity() {
         if (!playbackReady || !CastController.isConnected()) return
         player?.pause()
         if (CastController.loadStream(this, resolvedStream, streamTitle)) {
-            finish()
+            Toast.makeText(this, getString(R.string.cast_playing_on_tv, streamTitle), Toast.LENGTH_SHORT).show()
         }
     }
 
