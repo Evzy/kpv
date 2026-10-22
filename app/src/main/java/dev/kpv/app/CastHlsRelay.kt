@@ -57,11 +57,19 @@ object CastHlsRelay {
             lower.contains("mono.ts.m3u8") && !lower.contains("a1") -> 78
             lower.contains("1080") -> 80
             lower.contains("720") -> 70
-            lower.contains("index.m3u8") || lower.contains("master.m3u8") -> 12
+            lower.contains("index.m3u8") || lower.contains("master.m3u8") -> 0
             lower.contains("master") -> 20
             lower.contains(".m3u8") -> 35
             else -> 0
         }
+    }
+
+    /** Track/media playlists the LAN relay can fetch; master index URLs usually 403 outside WebView. */
+    fun isRelayablePlaylistUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        if (!lower.contains(".m3u8")) return false
+        if (lower.contains("index.m3u8") || lower.contains("master.m3u8")) return false
+        return true
     }
 
     /** CDN masters often 403 from the relay; try known track playlists derived from index.m3u8. */

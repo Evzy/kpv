@@ -206,8 +206,23 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
     private fun relayHeaders(stored: Map<String, String>, targetUrl: String): Map<String, String> {
         CookieManager.getInstance().flush()
         val out = CastUpstreamHeaders.forRelay(stored).toMutableMap()
-        CookieManager.getInstance().getCookie(targetUrl)?.takeIf { it.isNotBlank() }?.let { out["Cookie"] = it }
+        mergeCookies(out, targetUrl, stored)
         return out
+    }
+
+    private fun mergeCookies(out: MutableMap<String, String>, targetUrl: String, stored: Map<String, String>) {
+        val jar = CookieManager.getInstance()
+        val chunks = linkedSetOf<String>()
+        jar.getCookie(targetUrl)?.takeIf { it.isNotBlank() }?.let { chunks.add(it) }
+        stored.entries.firstOrNull { it.key.equals("Referer", true) }?.value?.let { referer ->
+            jar.getCookie(referer)?.takeIf { it.isNotBlank() }?.let { chunks.add(it) }
+        }
+        runCatching {
+            val host = URL(targetUrl).host
+            jar.getCookie("https://$host/")?.takeIf { it.isNotBlank() }?.let { chunks.add(it) }
+        }
+        if (chunks.isEmpty()) return
+        out["Cookie"] = chunks.joinToString("; ")
     }
 
     private fun fetchUpstream(

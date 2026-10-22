@@ -43,6 +43,12 @@ class CastHlsRelayTest {
     }
 
     @Test
+    fun isRelayablePlaylistUrl_rejectsIndexMaster() {
+        assertEquals(false, CastHlsRelay.isRelayablePlaylistUrl("https://cdn/x/index.m3u8"))
+        assertEquals(true, CastHlsRelay.isRelayablePlaylistUrl("https://cdn/tracks-v1/mono.ts.m3u8"))
+    }
+
+    @Test
     fun castEntryFetchCandidates_keepsSignedUrlOnly() {
         val signed = "https://cdn.example/secure/x/0/1/foxfooty/index.m3u8"
         assertEquals(listOf(signed), CastHlsRelay.castEntryFetchCandidates(signed))

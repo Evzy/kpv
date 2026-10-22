@@ -28,6 +28,7 @@ class StreamResolver(
     private val container: ViewGroup,
     private val streamUri: String,
     private val catalogEmbedUrl: String? = null,
+    private val preferRelayablePlaylist: Boolean = false,
     private val onDone: (ResolvedStream?) -> Unit,
 ) {
     companion object {
@@ -72,13 +73,17 @@ class StreamResolver(
     private val timeout = Runnable {
         val url = bestPlaylistUrl
         val headers = bestPlaylistHeaders
-        finish(if (url != null && headers != null) withFreshCookies(url, headers) else null)
+        if (url != null && headers != null && isAcceptableResult(url)) {
+            finish(withFreshCookies(url, headers))
+        } else {
+            finish(null)
+        }
     }
     private val finalizePlaylist: Runnable = object : Runnable {
         override fun run() {
             val url = bestPlaylistUrl ?: return
             val headers = bestPlaylistHeaders ?: return
-            if (shouldDeferIndexMaster(url)) {
+            if (!isAcceptableResult(url) || shouldDeferIndexMaster(url)) {
                 handler.postDelayed(this, PLAYLIST_SETTLE_MS)
                 return
             }
@@ -194,13 +199,18 @@ class StreamResolver(
             bestPlaylistUrl = url
             bestPlaylistHeaders = headers
         }
-        if (score >= STRONG_PLAYLIST_SCORE && !url.contains("index.m3u8", ignoreCase = true)) {
+        if (score >= STRONG_PLAYLIST_SCORE && isAcceptableResult(url)) {
             handler.removeCallbacks(finalizePlaylist)
             finish(withFreshCookies(url, headers))
             return
         }
         handler.removeCallbacks(finalizePlaylist)
         handler.postDelayed(finalizePlaylist, PLAYLIST_SETTLE_MS)
+    }
+
+    private fun isAcceptableResult(url: String): Boolean {
+        if (!preferRelayablePlaylist) return true
+        return CastHlsRelay.isRelayablePlaylistUrl(url)
     }
 
     private fun shouldDeferIndexMaster(url: String): Boolean {
