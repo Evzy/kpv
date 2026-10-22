@@ -22,19 +22,10 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.updatePadding
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-class MainActivity : AppCompatActivity(), CompanionHost {
+class MainActivity : AppCompatActivity() {
 
     private var pendingUpdate: GithubApkReleaseInfo? = null
     private var updateInProgress = false
-
-    override val resolveContainer: FrameLayout
-        get() = resolveHost
-
-    override fun isHostAlive(): Boolean = !isFinishing && !isDestroyed
-
-    override fun runOnUiThread(action: () -> Unit) {
-        super.runOnUiThread(action)
-    }
 
     companion object {
         private const val TAG = "MainActivity"
@@ -199,14 +190,6 @@ class MainActivity : AppCompatActivity(), CompanionHost {
             pendingUpdate = null
             downloadAndInstall(pending)
         }
-        if (!TvHelper.isTelevision(this)) {
-            TvCompanion.bindHost(this)
-            TvCompanion.startIfEnabled()
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
     }
 
     private fun refreshCatalog() {
@@ -242,8 +225,6 @@ class MainActivity : AppCompatActivity(), CompanionHost {
             catalogLoader = null
             if (result == null) {
                 catalogReady = false
-                CatalogCache.clear()
-                TvCompanion.stop()
                 runOnUiThread {
                     swipeRefresh.isRefreshing = false
                     updateCastButtonVisibility()
@@ -256,11 +237,7 @@ class MainActivity : AppCompatActivity(), CompanionHost {
                 }
                 return@CatalogLoader
             }
-            CatalogCache.set(result)
             catalogReady = true
-            if (!TvHelper.isTelevision(this)) {
-                TvCompanion.startIfEnabled()
-            }
             // Build the browse list off the UI thread so the first frame stays smooth.
             Thread {
                 val items = flattenForBrowse(result, TvHelper.isTelevision(this))
@@ -430,8 +407,6 @@ class MainActivity : AppCompatActivity(), CompanionHost {
     override fun onDestroy() {
         catalogLoader?.cancel()
         resolver?.cancel()
-        TvCompanion.bindHost(null)
-        TvCompanion.stop()
         if (isFinishing) {
             CastController.shutdown()
         }

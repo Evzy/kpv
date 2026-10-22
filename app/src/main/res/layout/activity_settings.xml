@@ -43,49 +43,6 @@
             android:textColor="@color/kpv_text_primary"
             android:textColorHint="@color/kpv_text_secondary" />
 
-        <Switch
-            android:id="@+id/companion_enabled"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/companion_enable"
-            android:textColor="@color/kpv_text_primary" />
-
-        <TextView
-            android:id="@+id/companion_pin_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/companion_pin_waiting"
-            android:textColor="@color/kpv_accent"
-            android:textSize="16sp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/companion_url_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/kpv_text_secondary"
-            android:textSize="13sp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/companion_paired_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/kpv_text_secondary"
-            android:textSize="13sp" />
-
-        <Button
-            android:id="@+id/companion_revoke"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/companion_revoke"
-            android:visibility="gone" />
-
         <Button
             android:id="@+id/save"
             android:layout_width="match_parent"

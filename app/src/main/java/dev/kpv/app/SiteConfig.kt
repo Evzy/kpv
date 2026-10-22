@@ -10,8 +10,6 @@ object SiteConfig {
     private const val PREFS = "kpv_site_config"
     private const val KEY_SITE = "site_origin"
     private const val KEY_API = "resolved_api"
-    private const val KEY_COMPANION = "companion_enabled"
-    private const val KEY_COMPANION_PORT = "companion_port"
 
     private lateinit var appContext: Context
     private var cachedSite: String = ""
@@ -33,22 +31,6 @@ object SiteConfig {
     }
 
     fun siteUrl(): String = cachedSite
-
-    fun isCompanionEnabled(): Boolean =
-        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean(KEY_COMPANION, false)
-
-    fun setCompanionEnabled(enabled: Boolean) {
-        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putBoolean(KEY_COMPANION, enabled)
-            .apply()
-    }
-
-    fun companionPort(): Int {
-        val p = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getInt(KEY_COMPANION_PORT, TvCompanion.defaultPort())
-        return if (p in 1024..65535) p else TvCompanion.defaultPort()
-    }
 
     fun saveSite(site: String) {
         val s = normalizeOrigin(site)
