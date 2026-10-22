@@ -310,8 +310,21 @@ class MainActivity : ComponentActivity(), CompanionHost {
         lifecycleScope.launch {
             GithubApkReleaseUpdater.fetchLatestApkRelease()
                 .onSuccess { release ->
+                    val installedCode =
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                            packageManager.getPackageInfo(packageName, 0).longVersionCode
+                        } else {
+                            @Suppress("DEPRECATION")
+                            packageManager.getPackageInfo(packageName, 0).versionCode.toLong()
+                        }
+                    val remoteCode = release.versionCode?.toLong()
+                    val codeSaysUpdate = remoteCode == null || remoteCode > installedCode
                     val versus = ReleaseVersionCompare.compare(release.tagName, BuildConfig.VERSION_NAME)
-                    if (versus == ReleaseVersionCompare.VersusInstalled.UPDATE_AVAILABLE && !isFinishing) {
+                    if (
+                        codeSaysUpdate &&
+                        versus == ReleaseVersionCompare.VersusInstalled.UPDATE_AVAILABLE &&
+                        !isFinishing
+                    ) {
                         showUpdateDialog(release)
                     }
                 }
@@ -351,7 +364,17 @@ class MainActivity : ComponentActivity(), CompanionHost {
             progress.dismiss()
             updateInProgress = false
             result
-                .onSuccess { GithubApkReleaseUpdater.startPackageInstall(this@MainActivity, it) }
+                .onSuccess { apk ->
+                    if (!GithubApkReleaseUpdater.canReplaceInstalledApp(this@MainActivity, apk)) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            R.string.update_failed_signature,
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        return@launch
+                    }
+                    GithubApkReleaseUpdater.startPackageInstall(this@MainActivity, apk)
+                }
                 .onFailure {
                     Toast.makeText(
                         this@MainActivity,

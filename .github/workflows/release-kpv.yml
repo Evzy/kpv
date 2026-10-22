@@ -126,6 +126,7 @@ jobs:
           cp "tizen/KPV.wgt" "KPV.wgt"
           cp "release/kpv-web-bundle.zip" "kpv-web-bundle.zip"
           cp "release/kpv-tv-manifest.json" "kpv-tv-manifest.json"
+          cp "release/version.json" "version.json"
           echo "apk=KPV-v${V}-debug.apk" >> "$GITHUB_OUTPUT"
 
       - name: Check if release already exists
@@ -171,4 +172,5 @@ jobs:
             KPV.wgt
             kpv-web-bundle.zip
             kpv-tv-manifest.json
+            version.json
           generate_release_notes: true

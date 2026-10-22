@@ -21,4 +21,6 @@
     <string name="update_downloading">Downloading update…</string>
     <string name="update_allow_installs">Allow installs from KPV, then return to finish the update.</string>
     <string name="update_failed">Update failed: %1$s</string>
+    <string name="update_failed_generic">Install was rejected</string>
+    <string name="update_failed_signature">This update uses a different signing key than your installed KPV (common if you installed v1.0.7 or a PC-built APK). Uninstall KPV, then install the latest APK from GitHub Releases.</string>
 </resources>

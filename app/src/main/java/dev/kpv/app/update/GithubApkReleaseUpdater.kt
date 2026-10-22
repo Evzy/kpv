@@ -1,8 +1,13 @@
 package dev.kpv.app.update
 
 import android.app.Activity
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import dev.kpv.app.BuildConfig
@@ -18,6 +23,8 @@ data class GithubApkReleaseInfo(
     val releaseTitle: String?,
     val assetName: String,
     val downloadUrl: String,
+    /** From release `version.json` when published; else null. */
+    val versionCode: Int?,
 )
 
 /** Sideload updater: latest GitHub Release `.apk` asset on [BuildConfig.UPDATE_GITHUB_REPO]. */
@@ -52,19 +59,87 @@ object GithubApkReleaseUpdater {
                 val release = JSONObject(raw)
                 val tagName = release.getString("tag_name")
                 val assets = release.optJSONArray("assets")
+                val assetList =
+                    (0 until (assets?.length() ?: 0)).map { assets!!.getJSONObject(it) }
                 val apk =
-                    (0 until (assets?.length() ?: 0))
-                        .map { assets!!.getJSONObject(it) }
-                        .firstOrNull { it.optString("name").endsWith(".apk", ignoreCase = true) }
+                    assetList.firstOrNull { it.optString("name").endsWith(".apk", ignoreCase = true) }
                         ?: error("No .apk asset on latest release ($tagName)")
+                val versionJson =
+                    assetList.firstOrNull { it.optString("name") == "version.json" }
+                val remoteVersionCode =
+                    versionJson?.optString("browser_download_url")?.let { url ->
+                        runCatching {
+                            open(url, token).run {
+                                try {
+                                    ensureOk()
+                                    JSONObject(inputStream.bufferedReader().use { it.readText() })
+                                        .optInt("versionCode", -1)
+                                        .takeIf { it > 0 }
+                                } finally {
+                                    disconnect()
+                                }
+                            }
+                        }.getOrNull()
+                    }
                 GithubApkReleaseInfo(
                     tagName = tagName,
                     releaseTitle = release.optString("name").ifBlank { null },
                     assetName = apk.getString("name"),
                     downloadUrl = apk.getString("browser_download_url"),
+                    versionCode = remoteVersionCode,
                 )
             }
         }
+
+    /** False when the APK cannot replace the installed app (different signing key). */
+    fun canReplaceInstalledApp(context: Context, apkFile: File): Boolean {
+        val pm = context.packageManager
+        val archiveFlags =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                PackageManager.GET_SIGNING_CERTIFICATES
+            } else {
+                @Suppress("DEPRECATION")
+                PackageManager.GET_SIGNATURES
+            }
+        val incoming =
+            pm.getPackageArchiveInfo(apkFile.absolutePath, archiveFlags) ?: return false
+        incoming.applicationInfo?.let { appInfo ->
+            appInfo.sourceDir = apkFile.absolutePath
+            appInfo.publicSourceDir = apkFile.absolutePath
+        }
+        val installed =
+            try {
+                pm.getPackageInfo(context.packageName, archiveFlags)
+            } catch (_: PackageManager.NameNotFoundException) {
+                return true
+            }
+        return signingDigestsMatch(installed, incoming)
+    }
+
+    private fun signingDigestsMatch(
+        installed: android.content.pm.PackageInfo,
+        incoming: android.content.pm.PackageInfo,
+    ): Boolean {
+        val installedBytes = apkSignerDigests(installed)
+        val incomingBytes = apkSignerDigests(incoming)
+        if (installedBytes.isEmpty() || incomingBytes.isEmpty()) return false
+        return installedBytes.any { a -> incomingBytes.any { b -> a.contentEquals(b) } }
+    }
+
+    private fun apkSignerDigests(packageInfo: android.content.pm.PackageInfo): List<ByteArray> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val info = packageInfo.signingInfo ?: return emptyList()
+            val signers =
+                if (info.hasMultipleSigners()) {
+                    info.apkContentsSigners
+                } else {
+                    info.signingCertificateHistory
+                }
+            return signers?.map { it.toByteArray() } ?: emptyList()
+        }
+        @Suppress("DEPRECATION")
+        return packageInfo.signatures?.map { it.toByteArray() } ?: emptyList()
+    }
 
     fun ensureInstallFromUnknownSources(activity: Activity): Boolean {
         if (activity.packageManager.canRequestPackageInstalls()) return true
@@ -95,6 +170,44 @@ object GithubApkReleaseUpdater {
         }
 
     fun startPackageInstall(activity: Activity, apkFile: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            runCatching { startSessionInstall(activity, apkFile) }
+                .onFailure { startLegacyPackageInstall(activity, apkFile) }
+        } else {
+            startLegacyPackageInstall(activity, apkFile)
+        }
+    }
+
+    private fun startSessionInstall(context: Context, apkFile: File) {
+        val installer = context.packageManager.packageInstaller
+        val params =
+            PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(context.packageName)
+            }
+        val sessionId = installer.createSession(params)
+        val session = installer.openSession(sessionId)
+        apkFile.inputStream().use { input ->
+            session.openWrite("KPV-update", 0, apkFile.length()).use { output ->
+                input.copyTo(output)
+                session.fsync(output)
+            }
+        }
+        val callback =
+            Intent(context, InstallResultReceiver::class.java).apply {
+                action = ACTION_INSTALL_COMPLETE
+            }
+        val pendingFlags =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+        val pending = PendingIntent.getBroadcast(context, sessionId, callback, pendingFlags)
+        session.commit(pending.intentSender)
+        session.close()
+    }
+
+    private fun startLegacyPackageInstall(activity: Activity, apkFile: File) {
         val uri =
             FileProvider.getUriForFile(
                 activity,
@@ -104,10 +217,12 @@ object GithubApkReleaseUpdater {
         val intent =
             Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         activity.startActivity(intent)
     }
+
+    private const val ACTION_INSTALL_COMPLETE = "dev.kpv.app.INSTALL_COMPLETE"
 
     private fun open(url: String, token: String): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {
