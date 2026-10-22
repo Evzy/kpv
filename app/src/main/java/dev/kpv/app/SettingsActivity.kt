@@ -10,7 +10,9 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.ScrollView
 import android.widget.Toast
+import androidx.core.view.updatePadding
 
 class SettingsActivity : Activity() {
 
@@ -24,8 +26,21 @@ class SettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         TvHelper.applyScreenOrientation(this)
+        PhoneSystemBars.enableEdgeToEdge(this)
         setContentView(R.layout.activity_settings)
         hideCompanionUi = TvHelper.isTelevision(this)
+        if (!hideCompanionUi) {
+            val scroll = findViewById<ScrollView>(R.id.settings_scroll)
+            PhoneSystemBars.listen(this, scroll) { insets, view ->
+                val bars = PhoneSystemBars.systemBarInsets(insets)
+                view.updatePadding(
+                    left = bars.left,
+                    top = bars.top,
+                    right = bars.right,
+                    bottom = bars.bottom,
+                )
+            }
+        }
 
         val site = findViewById<EditText>(R.id.site_origin)
         site.setText(SiteConfig.siteUrl())

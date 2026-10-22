@@ -1,13 +1,22 @@
 package dev.kpv.app
 
-import android.content.Context
-import androidx.appcompat.view.ContextThemeWrapper
-import androidx.mediarouter.app.MediaRouteButton
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import androidx.fragment.app.FragmentActivity
+import com.google.android.gms.cast.framework.CastButtonFactory
 
-/** MediaRouteButton requires an AppCompat theme with an opaque window background. */
 object CastUi {
-    fun mediaRouteButton(context: Context): MediaRouteButton {
-        val themed = ContextThemeWrapper(context, R.style.Theme_Kpv_MediaRouterButton)
-        return MediaRouteButton(themed)
+
+    fun attachRouteButton(
+        activity: FragmentActivity,
+        parent: ViewGroup,
+        contentDescription: CharSequence,
+    ): KpvMediaRouteButton {
+        val button = LayoutInflater.from(activity)
+            .inflate(R.layout.widget_cast_button, parent, false) as KpvMediaRouteButton
+        button.contentDescription = contentDescription
+        CastButtonFactory.setUpMediaRouteButton(activity, button)
+        parent.addView(button)
+        return button
     }
 }

@@ -7,7 +7,7 @@ import android.util.Log
 import android.util.TypedValue
 import android.widget.ProgressBar
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import dev.kpv.app.update.GithubApkReleaseInfo
 import dev.kpv.app.update.GithubApkReleaseUpdater
@@ -20,14 +20,9 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-import androidx.mediarouter.app.MediaRouteButton
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.gms.cast.framework.CastButtonFactory
-
-class MainActivity : ComponentActivity(), CompanionHost {
+class MainActivity : AppCompatActivity(), CompanionHost {
 
     private var pendingUpdate: GithubApkReleaseInfo? = null
     private var updateInProgress = false
@@ -53,7 +48,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
     private lateinit var catalogView: CatalogBrowseView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var status: TextView
-    private var castButton: MediaRouteButton? = null
+    private var castButton: KpvMediaRouteButton? = null
 
     private var catalogLoader: CatalogLoader? = null
     private var resolver: StreamResolver? = null
@@ -63,6 +58,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         TvHelper.applyScreenOrientation(this)
+        PhoneSystemBars.enableEdgeToEdge(this)
 
         catalogView = CatalogBrowseView(this, ::playChannel)
         swipeRefresh = SwipeRefreshLayout(this).apply {
@@ -127,26 +123,22 @@ class MainActivity : ComponentActivity(), CompanionHost {
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
             )
             if (!TvHelper.isTelevision(this@MainActivity)) {
-                val cast = CastUi.mediaRouteButton(this@MainActivity).apply {
-                    contentDescription = getString(R.string.cast)
+                castButton = CastUi.attachRouteButton(
+                    this@MainActivity,
+                    this,
+                    getString(R.string.cast),
+                ).apply {
                     visibility = android.view.View.GONE
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ).apply { marginEnd = dp(8) }
                 }
-                CastButtonFactory.setUpMediaRouteButton(this@MainActivity, cast)
-                castButton = cast
-                addView(cast, LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply { marginEnd = dp(8) })
             }
             addView(settingsButton, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ))
-            ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
-                val bars = insets.getInsets(WindowInsetsCompat.Type.statusBars())
-                view.updatePadding(top = bars.top + dp(8))
-                insets
-            }
         }
 
         val mainColumn = LinearLayout(this).apply {
@@ -177,6 +169,15 @@ class MainActivity : ComponentActivity(), CompanionHost {
             ))
         }
         setContentView(root)
+        PhoneSystemBars.listen(this, root) { insets, view ->
+            val bars = PhoneSystemBars.systemBarInsets(insets)
+            topBar.updatePadding(top = bars.top + dp(8))
+            view.updatePadding(
+                left = bars.left,
+                right = bars.right,
+                bottom = bars.bottom,
+            )
+        }
         catalogView.visibility = android.view.View.GONE
         if (!TvHelper.isTelevision(this)) {
             CastController.init(this, ContextCompat.getMainExecutor(this)) {

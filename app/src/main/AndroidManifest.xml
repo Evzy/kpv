@@ -57,7 +57,7 @@
             android:name=".PlayerActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
             android:exported="false"
-            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+            android:theme="@style/Theme.Kpv.Player" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

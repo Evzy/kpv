@@ -13,4 +13,11 @@
         <item name="android:windowBackground">@color/kpv_surface</item>
         <item name="colorPrimary">@color/kpv_accent</item>
     </style>
+
+    <style name="Theme.Kpv.Player" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="mediaRouteTheme">@style/Theme.Kpv.MediaRouterButton</item>
+    </style>
 </resources>

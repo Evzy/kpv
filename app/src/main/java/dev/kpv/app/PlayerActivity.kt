@@ -1,7 +1,7 @@
 package dev.kpv.app
 
-import android.app.Activity
 import android.content.Context
+import androidx.appcompat.app.AppCompatActivity
 import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
@@ -18,14 +18,13 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.ui.PlayerView
-import androidx.mediarouter.app.MediaRouteButton
-import com.google.android.gms.cast.framework.CastButtonFactory
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
 import androidx.core.content.ContextCompat
+import androidx.core.view.updatePadding
 
-class PlayerActivity : Activity() {
+class PlayerActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_URL = "url"
@@ -46,7 +45,7 @@ class PlayerActivity : Activity() {
     private var player: ExoPlayer? = null
     private lateinit var resolvedStream: ResolvedStream
     private var streamTitle: String = "KPV"
-    private var castButton: MediaRouteButton? = null
+    private var castButton: KpvMediaRouteButton? = null
     private var castSessionListener: SessionManagerListener<CastSession>? = null
     private var playbackReady = false
 
@@ -54,6 +53,7 @@ class PlayerActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         TvHelper.applyScreenOrientation(this)
+        PhoneSystemBars.enableEdgeToEdge(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         val url = intent.getStringExtra(EXTRA_URL) ?: return finish()
@@ -111,27 +111,36 @@ class PlayerActivity : Activity() {
                 ),
             )
             if (!TvHelper.isTelevision(this@PlayerActivity)) {
-                val cast = CastUi.mediaRouteButton(this@PlayerActivity).apply {
-                    contentDescription = getString(R.string.cast)
+                castButton = CastUi.attachRouteButton(
+                    this@PlayerActivity,
+                    this,
+                    getString(R.string.cast),
+                ).apply {
                     visibility = android.view.View.GONE
-                }
-                CastButtonFactory.setUpMediaRouteButton(this@PlayerActivity, cast)
-                castButton = cast
-                val margin = (16 * resources.displayMetrics.density).toInt()
-                addView(
-                    cast,
-                    FrameLayout.LayoutParams(
+                    val margin = (16 * resources.displayMetrics.density).toInt()
+                    layoutParams = FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.WRAP_CONTENT,
                         FrameLayout.LayoutParams.WRAP_CONTENT,
                         Gravity.TOP or Gravity.END,
                     ).apply {
                         topMargin = margin
                         marginEnd = margin
-                    },
-                )
+                    }
+                }
             }
         }
         setContentView(root)
+        PhoneSystemBars.listen(this, root) { insets, view ->
+            val bars = PhoneSystemBars.systemBarInsets(insets)
+            view.updatePadding(bottom = bars.bottom)
+            castButton?.let { button ->
+                val margin = (16 * resources.displayMetrics.density).toInt()
+                val lp = button.layoutParams as FrameLayout.LayoutParams
+                lp.topMargin = margin + bars.top
+                lp.marginEnd = margin + bars.right
+                button.layoutParams = lp
+            }
+        }
         playerView.requestFocus()
 
         if (!TvHelper.isTelevision(this)) {
