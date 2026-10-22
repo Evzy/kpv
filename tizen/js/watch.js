@@ -154,12 +154,20 @@
     window.location.replace(`sniff.html?${q.toString()}`);
   }
 
+  function canReresolve() {
+    if (!payload.uri) return false;
+    const canPhone = typeof Companion !== "undefined" && Companion.isActive();
+    const embed = payload.embedUrl || Site.embedFallback(payload.uri);
+    return canPhone || StreamResolve.tvResolveAvailable(embed);
+  }
+
   function noStreamMessage(resolved) {
     const lines = [
       "No direct HLS URL for this channel.",
       "",
-      "Tizen playback needs a .m3u8 (site API, paired phone companion, or test stream).",
+      "Tizen playback needs a .m3u8 (site API, TV decoder, paired phone companion, or test stream).",
     ];
+    if (resolved.tvNote) lines.push("", resolved.tvNote);
     if (typeof Companion !== "undefined" && Companion.isModeOn() && !Companion.isActive()) {
       lines.push("", "Companion is on but TV is not paired — enter PIN from the phone in Settings.");
     } else if (Companion.isActive() && !resolved.usedResolver) {
@@ -205,8 +213,8 @@
       PlaybackCache.clear(payload.uri);
     }
 
-    if (forcePhone && typeof Companion !== "undefined" && Companion.isActive() && payload.uri) {
-      step("Requesting fresh playlist from phone…");
+    if (forcePhone && payload.uri) {
+      step("Requesting a fresh playlist…");
     } else if (payload.uri && PlaybackCache.get(payload.uri)) {
       step(`Loading ${payload.title} (cached)…`);
     } else {
@@ -228,7 +236,7 @@
         hlsUrl: forcePhone ? "" : payload.hlsUrl,
         embedUrl: payload.embedUrl,
       },
-      { forcePhone },
+      { forcePhone, onStep: step },
     );
 
     if (!resolved.hls.startsWith("http")) {
@@ -243,9 +251,7 @@
     try {
       await startAvplay(resolved);
     } catch (e) {
-      const canPhone =
-        typeof Companion !== "undefined" && Companion.isActive() && payload.uri;
-      if (!forcePhone && resolved.fromCache && canPhone) {
+      if (!forcePhone && resolved.fromCache && canReresolve()) {
         PlaybackCache.clear(payload.uri);
         await resolveAndPlay(true);
         return;
@@ -260,12 +266,9 @@
     paused = false;
     AvplayPlay.stop();
 
-    const canPhone =
-      typeof Companion !== "undefined" && Companion.isActive() && payload.uri;
-
-    if (canPhone) {
-      if (payload.uri) PlaybackCache.clear(payload.uri);
-      step("Stream lost — asking phone for a new link…");
+    if (canReresolve()) {
+      PlaybackCache.clear(payload.uri);
+      step("Stream lost — getting a new link…");
       try {
         await resolveAndPlay(true);
       } catch (e) {

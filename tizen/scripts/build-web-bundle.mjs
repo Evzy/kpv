@@ -23,6 +23,8 @@ const bundleFiles = [
   "companion.js",
   "playback-cache.js",
   "stream-resolve.js",
+  "wasm-lower.js",
+  "gasm-resolve.js",
   "tizen-play.js",
   "hls-shell.html",
   "hls.min.js",

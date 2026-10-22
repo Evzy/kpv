@@ -38,6 +38,8 @@ await cp(path.join(root, "js", "embed-engine.js"), path.join(root, "embed-engine
 await cp(path.join(root, "js", "avplay-play.js"), path.join(root, "avplay-play.js"));
 await cp(path.join(root, "js", "playback-cache.js"), path.join(root, "playback-cache.js"));
 await cp(path.join(root, "js", "stream-resolve.js"), path.join(root, "stream-resolve.js"));
+await cp(path.join(root, "js", "wasm-lower.js"), path.join(root, "wasm-lower.js"));
+await cp(path.join(root, "js", "gasm-resolve.js"), path.join(root, "gasm-resolve.js"));
 await cp(path.join(root, "js", "tizen-play.js"), path.join(root, "tizen-play.js"));
 await cp(path.join(root, "js", "site.js"), path.join(root, "site.js"));
 await cp(path.join(root, "js", "companion.js"), path.join(root, "companion.js"));

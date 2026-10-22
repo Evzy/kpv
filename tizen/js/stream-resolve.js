@@ -1,7 +1,7 @@
-/* global Site */
+/* global Site, GasmResolve */
 /**
- * Resolve a playable HLS URL: playback cache, then site API, then the paired phone companion.
- * No in-widget JW/embed engine on the default path (testable without a TV).
+ * Resolve a playable HLS URL: playback cache, then site API, then the embed site's decoder
+ * run on the TV (GasmResolve), then the paired phone companion.
  */
 const StreamResolve = (() => {
   const STORAGE_SNIFF = "kpv_use_embed_sniff";
@@ -46,6 +46,21 @@ const StreamResolve = (() => {
 
   function companionReady() {
     return typeof Companion !== "undefined" && Companion.isActive();
+  }
+
+  function tvResolveAvailable(embedUrl) {
+    return typeof GasmResolve !== "undefined" && GasmResolve.canResolve(embedUrl);
+  }
+
+  async function resolveOnTv(embedUrl) {
+    if (!tvResolveAvailable(embedUrl)) return { hls: "", note: "" };
+    try {
+      const url = (await GasmResolve.resolve(embedUrl)).trim();
+      if (url.startsWith("http") && isHls(url)) return { hls: url, note: "" };
+      return { hls: "", note: "TV decoder returned no playlist." };
+    } catch (e) {
+      return { hls: "", note: `TV decoder: ${(e && e.message) || e}` };
+    }
   }
 
   function embedSniffEnabled() {
@@ -148,8 +163,10 @@ const StreamResolve = (() => {
     let embed = (opts.embedUrl || "").trim();
     let streamData = null;
     let usedResolver = false;
+    let usedTvResolver = false;
     let fromCache = false;
     let companionNote = "";
+    let tvNote = "";
 
     if (!forcePhone && !skipCache && uri && typeof PlaybackCache !== "undefined") {
       const cached = PlaybackCache.get(uri);
@@ -187,6 +204,14 @@ const StreamResolve = (() => {
 
     if (!embed && uri) embed = Site.embedFallback(uri);
 
+    if (!hls && embed) {
+      if (ro.onStep) ro.onStep("Resolving stream on TV…");
+      const fromTv = await resolveOnTv(embed);
+      hls = fromTv.hls;
+      tvNote = fromTv.note;
+      usedTvResolver = Boolean(hls);
+    }
+
     if (!hls && uri && companionReady()) {
       const fromPhone = await fetchFromCompanion(uri, embed, forcePhone);
       hls = fromPhone.hls;
@@ -209,8 +234,10 @@ const StreamResolve = (() => {
       referer,
       streamData,
       usedResolver,
+      usedTvResolver,
       fromCache,
       companionNote,
+      tvNote,
       embedSniffEnabled: embedSniffEnabled(),
     };
   }
@@ -224,6 +251,7 @@ const StreamResolve = (() => {
     fetchFromCompanion,
     prepareOnPhone,
     companionReady,
+    tvResolveAvailable,
     resolveForWatch,
     embedSniffEnabled,
   };
