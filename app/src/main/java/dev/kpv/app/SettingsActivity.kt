@@ -2,7 +2,9 @@ package dev.kpv.app
 
 import android.app.Activity
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
@@ -26,6 +28,16 @@ class SettingsActivity : Activity() {
 
         val site = findViewById<EditText>(R.id.site_origin)
         site.setText(SiteConfig.siteUrl())
+        site.setOnEditorActionListener { _, actionId, event ->
+            val doneKey =
+                event?.keyCode == KeyEvent.KEYCODE_ENTER &&
+                    event.action == KeyEvent.ACTION_DOWN
+            if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO || doneKey) {
+                saveSiteAndFinish()
+            } else {
+                false
+            }
+        }
 
         companionSwitch = findViewById(R.id.companion_enabled)
         companionPinLabel = findViewById(R.id.companion_pin_label)
@@ -45,19 +57,7 @@ class SettingsActivity : Activity() {
             }
         }
 
-        findViewById<Button>(R.id.save).setOnClickListener {
-            val s = site.text.toString().trim()
-            if (s.isBlank()) {
-                Toast.makeText(this, R.string.settings_site_required, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            SiteConfig.saveSite(s)
-            if (!hideCompanionUi) {
-                SiteConfig.setCompanionEnabled(companionSwitch.isChecked)
-            }
-            setResult(RESULT_OK)
-            finish()
-        }
+        findViewById<Button>(R.id.save).setOnClickListener { saveSiteAndFinish() }
 
         if (!hideCompanionUi) {
             refreshCompanionUi()
@@ -69,6 +69,22 @@ class SettingsActivity : Activity() {
         if (!hideCompanionUi) {
             refreshCompanionUi()
         }
+    }
+
+    private fun saveSiteAndFinish(): Boolean {
+        val site = findViewById<EditText>(R.id.site_origin)
+        val s = site.text.toString().trim()
+        if (s.isBlank()) {
+            Toast.makeText(this, R.string.settings_site_required, Toast.LENGTH_SHORT).show()
+            return false
+        }
+        SiteConfig.saveSite(s)
+        if (!hideCompanionUi) {
+            SiteConfig.setCompanionEnabled(companionSwitch.isChecked)
+        }
+        setResult(RESULT_OK)
+        finish()
+        return true
     }
 
     private fun hideCompanionSection() {

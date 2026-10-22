@@ -34,8 +34,10 @@
             android:layout_height="wrap_content"
             android:autofillHints=""
             android:hint="@string/hint_site"
+            android:imeOptions="actionDone"
             android:importantForAutofill="no"
             android:inputType="textUri"
+            android:maxLines="1"
             android:textColor="@color/kpv_text_primary"
             android:textColorHint="@color/kpv_text_secondary" />
 
