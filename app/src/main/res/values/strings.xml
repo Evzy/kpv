@@ -22,4 +22,8 @@
     <string name="cast_session_lost">Cast session lost. Pick the device again.</string>
     <string name="cast_load_failed">Couldn\'t load stream on the TV.</string>
     <string name="cast_playing_on_tv">Playing on %1$s</string>
+    <string name="cast_relay_channel">Cast relay</string>
+    <string name="cast_relay_channel_desc">Keeps the phone relay running while the TV plays a cast stream.</string>
+    <string name="cast_relay_notification_title">Casting to TV</string>
+    <string name="cast_relay_notification_text">Keep KPV running on Wi‑Fi while the TV plays.</string>
 </resources>

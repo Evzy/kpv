@@ -261,7 +261,13 @@ class MainActivity : AppCompatActivity() {
         catalogView.isEnabled = false
         status.visibility = android.view.View.GONE
         val iframe = channel.playerIframeUrl.takeIf { it.startsWith("http") }
-        resolver = StreamResolver(this, resolveHost, channel.streamUri, iframe) { stream ->
+        resolver = StreamResolver(
+            this,
+            resolveHost,
+            channel.streamUri,
+            iframe,
+            castMode = CastController.isConnected(),
+        ) { stream ->
             resolver = null
             catalogView.setLoadingStream(null)
             catalogView.isEnabled = true
@@ -408,7 +414,7 @@ class MainActivity : AppCompatActivity() {
         catalogLoader?.cancel()
         resolver?.cancel()
         if (isFinishing) {
-            CastController.shutdown()
+            CastController.shutdown(applicationContext)
         }
         super.onDestroy()
     }

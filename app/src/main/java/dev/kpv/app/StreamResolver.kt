@@ -15,6 +15,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -28,6 +29,7 @@ class StreamResolver(
     private val container: ViewGroup,
     private val streamUri: String,
     private val catalogEmbedUrl: String? = null,
+    private val castMode: Boolean = false,
     private val onDone: (ResolvedStream?) -> Unit,
 ) {
     companion object {
@@ -61,6 +63,7 @@ class StreamResolver(
     private var embedHost: String? = null
     private var userAgent: String? = null
     @Volatile private var finished = false
+    @Volatile private var captured = false
 
     private val timeout = Runnable { finish(null) }
     private val nudge = object : Runnable {
@@ -142,11 +145,18 @@ class StreamResolver(
 
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 val url = request.url.toString()
-                if (!finished && PLAYLIST_PATTERN.containsMatchIn(url)) {
+                if (!PLAYLIST_PATTERN.containsMatchIn(url)) return null
+                if (!finished && !captured) {
+                    captured = true
                     val headers = buildHeaders(url, request.requestHeaders)
                     handler.post { finish(ResolvedStream(url, headers)) }
                 }
-                return null
+                // Signed CDN playlists can be single-use; when casting the relay must make the first fetch.
+                return if (castMode) {
+                    WebResourceResponse("application/vnd.apple.mpegurl", "utf-8", ByteArrayInputStream(ByteArray(0)))
+                } else {
+                    null
+                }
             }
 
             override fun onPageFinished(view: WebView, url: String) {
