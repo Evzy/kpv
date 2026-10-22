@@ -1,0 +1,17 @@
+---
+description: Push verified kpv changes to origin when work is complete and approved
+alwaysApply: true
+---
+
+# Push when changes are ready
+
+When we reach a point where the changes are **verified** and **good to ship** (user confirmed, or clear task completion):
+
+1. **Verify** — run the relevant checks (e.g. `./gradlew :app:assembleDebug :app:testDebugUnitTest`, emulator spot-check for Android UX).
+2. **Release version** — if the Android app or CI release should update, bump `release/version.json` and `tizen/package.json` together; run `node scripts/check-release-version.mjs`.
+3. **Commit** — stage only intentional files (not build outputs or unrelated `tools/` unless requested).
+4. **Push** — `git push origin main` (or the current feature branch). Do not stop at commit-only unless the user explicitly asks not to push.
+
+This overrides “wait for the user to say commit” for **finished, approved work** — the user wants pushes at natural completion, not left sitting locally.
+
+If the user says they are not happy yet, do not push.
