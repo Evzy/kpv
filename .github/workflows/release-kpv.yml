@@ -123,11 +123,13 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${V}" >> "$GITHUB_OUTPUT"
           cp "app/build/outputs/apk/debug/app-debug.apk" "KPV-v${V}-debug.apk"
+          cp "tizen/KPV.wgt" "KPV-v${V}.wgt"
           cp "tizen/KPV.wgt" "KPV.wgt"
           cp "release/kpv-web-bundle.zip" "kpv-web-bundle.zip"
           cp "release/kpv-tv-manifest.json" "kpv-tv-manifest.json"
           cp "release/version.json" "version.json"
           echo "apk=KPV-v${V}-debug.apk" >> "$GITHUB_OUTPUT"
+          echo "wgt=KPV-v${V}.wgt" >> "$GITHUB_OUTPUT"
 
       - name: Check if release already exists
         id: check
@@ -169,6 +171,7 @@ jobs:
           name: KPV ${{ steps.meta.outputs.tag }}
           files: |
             ${{ steps.meta.outputs.apk }}
+            ${{ steps.meta.outputs.wgt }}
             KPV.wgt
             kpv-web-bundle.zip
             kpv-tv-manifest.json

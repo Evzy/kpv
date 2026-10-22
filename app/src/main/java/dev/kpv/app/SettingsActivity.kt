@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
@@ -29,10 +30,26 @@ class SettingsActivity : Activity() {
         val site = findViewById<EditText>(R.id.site_origin)
         site.setText(SiteConfig.siteUrl())
         site.setOnEditorActionListener { _, actionId, event ->
-            val doneKey =
+            val action = actionId and EditorInfo.IME_MASK_ACTION
+            val enterKey =
                 event?.keyCode == KeyEvent.KEYCODE_ENTER &&
                     event.action == KeyEvent.ACTION_DOWN
-            if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO || doneKey) {
+            val imeDone =
+                action == EditorInfo.IME_ACTION_DONE ||
+                    action == EditorInfo.IME_ACTION_GO ||
+                    action == EditorInfo.IME_ACTION_SEND
+            if (imeDone || enterKey) {
+                saveSiteAndFinish()
+            } else {
+                false
+            }
+        }
+        site.setOnKeyListener { _, keyCode, event ->
+            if (
+                keyCode == KeyEvent.KEYCODE_ENTER &&
+                    event.action == KeyEvent.ACTION_DOWN &&
+                    site.isFocused
+            ) {
                 saveSiteAndFinish()
             } else {
                 false
@@ -78,6 +95,8 @@ class SettingsActivity : Activity() {
             Toast.makeText(this, R.string.settings_site_required, Toast.LENGTH_SHORT).show()
             return false
         }
+        val imm = getSystemService(InputMethodManager::class.java)
+        imm?.hideSoftInputFromWindow(site.windowToken, 0)
         SiteConfig.saveSite(s)
         if (!hideCompanionUi) {
             SiteConfig.setCompanionEnabled(companionSwitch.isChecked)

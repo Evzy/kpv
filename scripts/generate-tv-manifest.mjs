@@ -26,7 +26,7 @@ async function main() {
     bundleSha256,
     minWgtShell: meta.minWgtShell,
     forceWgtInstall: meta.forceWgtInstall,
-    wgtUrl: `${base}/KPV.wgt`,
+    wgtUrl: `${base}/KPV-v${meta.version}.wgt`,
     releaseNotes: process.env.KPV_RELEASE_NOTES || "",
   };
   const out = path.join(repoRoot, "release", "kpv-tv-manifest.json");
