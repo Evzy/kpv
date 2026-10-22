@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.14";
+const KPV_APP_VERSION = "1.0.16";
 
 
 /* global window */

@@ -41,7 +41,7 @@ On **cold start**, the app checks `GET /repos/{owner}/kpv-releases/releases/late
 
 ## Tizen: hot bundle vs manual `.wgt`
 
-The TV app loads **`main.js` / `style.css` from the installed `.wgt`** so startup is never blocked by the network. After boot, **`bootstrap.js`** (defer) fetches **`kpv-tv-manifest.json`**, may download **`kpv-web-bundle.zip`** (SHA-256 verified), and caches it under `documents/kpv-hot-cache`. A one-time toast can show “Updated to …” when a new bundle is cached.
+The TV app loads **`boot.js`** first: if a hot bundle was applied before, it loads **`main.js` / `style.css` from `documents/kpv-hot-cache`**, otherwise from the installed `.wgt`. **`bootstrap.js`** (defer) fetches **`kpv-tv-manifest.json`**, may download **`kpv-web-bundle.zip`**, caches it, then **reloads** so the new version runs. A one-time toast can show “Updated to …” after reload. TVs need a **`.wgt` that includes `boot.js`** (shell **1.0.38+**) for hot updates to change the on-screen version and JS behavior.
 
 ### When you do **not** need a manual `.wgt` reinstall
 

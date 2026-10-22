@@ -182,13 +182,22 @@
   }
 
   function applyBundleZip(arrayBuffer, expectedSha256) {
+    var zipFromBuffer = function () {
+      return ensureJSZip().then(function () {
+        return JSZip.loadAsync(arrayBuffer);
+      });
+    };
+    if (!window.crypto || !window.crypto.subtle) {
+      if (expectedSha256) {
+        console.warn("KPV: crypto.subtle unavailable — applying bundle without SHA-256 verify");
+      }
+      return zipFromBuffer();
+    }
     return sha256Hex(arrayBuffer).then(function (hex) {
       if (expectedSha256 && hex.toLowerCase() !== String(expectedSha256).toLowerCase()) {
         throw new Error("Bundle SHA-256 mismatch");
       }
-      return ensureJSZip().then(function () {
-        return JSZip.loadAsync(arrayBuffer);
-      });
+      return zipFromBuffer();
     });
   }
 
@@ -252,6 +261,7 @@
       .then(function () {
         setCachedVersion(remote);
         maybeAnnounce(remote, manifest);
+        window.location.reload();
       })
       .catch(function (err) {
         console.warn("Background bundle download failed:", err);
