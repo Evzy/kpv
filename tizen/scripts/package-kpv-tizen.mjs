@@ -78,6 +78,7 @@ async function stagePackage({ version, appId, packageId, appName, hello }) {
   }
 
   const flatFiles = [
+    "bundle-cache.js",
     "boot.js",
     "bootstrap.js",
     "jszip.min.js",

@@ -30,6 +30,7 @@ const jsOrder = [
 ];
 
 await cp(path.join(root, "js", "boot.js"), path.join(root, "boot.js"));
+await cp(path.join(root, "js", "bundle-cache.js"), path.join(root, "bundle-cache.js"));
 await cp(path.join(root, "js", "watch.js"), path.join(root, "watch.js"));
 await cp(path.join(root, "js", "sniff.js"), path.join(root, "sniff.js"));
 await cp(path.join(root, "js", "embed-engine.js"), path.join(root, "embed-engine.js"));

@@ -40,19 +40,49 @@ const TvUpdate = (() => {
     }
   }
 
-  function xhrGet(url) {
+  function xhrGet(url, responseType) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("GET", url, true);
       xhr.timeout = FETCH_MS;
+      if (responseType) xhr.responseType = responseType;
       xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
         else reject(new Error("HTTP " + xhr.status));
       };
       xhr.onerror = () => reject(new Error("Network error"));
       xhr.ontimeout = () => reject(new Error("Timeout"));
       xhr.send();
     });
+  }
+
+  function loadJSZip() {
+    if (window.JSZip) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "jszip.min.js";
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("Could not load jszip"));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function applyManifest(manifest) {
+    if (typeof KpvBundleCache === "undefined") {
+      throw new Error("Sideload latest KPV.wgt once (TV cache fix)");
+    }
+    const version = String(manifest.bundleVersion || "");
+    if (!version || !manifest.bundleUrl) throw new Error("Invalid manifest");
+    await loadJSZip();
+    const buf = await xhrGet(manifest.bundleUrl, "arraybuffer");
+    const zip = await JSZip.loadAsync(buf);
+    await KpvBundleCache.extractZipToVersion(version, zip);
+    KpvBundleCache.setCachedVersion(version);
+    try {
+      localStorage.setItem(LS_BUNDLE, version);
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   function showToast(msg, ms) {
@@ -86,9 +116,10 @@ const TvUpdate = (() => {
     const running = runningVersion();
     const cached = cachedVersion();
     let latest = "";
+    let manifest = null;
     try {
       const text = await xhrGet(MANIFEST_URL);
-      const manifest = JSON.parse(text);
+      manifest = JSON.parse(text);
       latest = String(manifest.bundleVersion || "");
     } catch (e) {
       return {
@@ -103,9 +134,9 @@ const TvUpdate = (() => {
       return { running, cached, latest: "", status: "unknown" };
     }
     if (compare(latest, running) <= 0) {
-      return { running, cached, latest, status: "current" };
+      return { running, cached, latest, status: "current", manifest };
     }
-    return { running, cached, latest, status: "update-available" };
+    return { running, cached, latest, status: "update-available", manifest };
   }
 
   async function check(options) {
@@ -117,14 +148,20 @@ const TvUpdate = (() => {
       if (opts.toast) showToast("Could not reach GitHub for updates. " + (state.detail || ""));
       return state;
     }
-    if (state.status === "update-available") {
+    if (state.status === "update-available" && state.manifest) {
       if (opts.toast) {
-        showToast("KPV v" + state.latest + " available — downloading…", 8000);
+        showToast("KPV v" + state.latest + " — downloading…", 8000);
       }
-      if (typeof window.KPV_triggerHotUpdate === "function") {
-        window.KPV_triggerHotUpdate();
-      } else if (opts.reload) {
+      try {
+        applyVersionLine({ ...state, status: "downloading" });
+        await applyManifest(state.manifest);
+        showToast("Updated to v" + state.latest + " — restarting", 5000);
         window.location.reload();
+      } catch (e) {
+        applyVersionLine({ ...state, status: "failed" });
+        if (opts.toast) {
+          showToast("Update failed — " + (e.message || e), 9000);
+        }
       }
       return state;
     }

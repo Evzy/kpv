@@ -283,24 +283,11 @@
     });
   }
 
-  function extractZipToCache(zip) {
-    return resolveDocumentsDir().then(function (dir) {
-      return clearCacheDir(dir).then(function () {
-        return dir;
-      });
-    }).then(function (dir) {
-      var names = Object.keys(zip.files).filter(function (n) {
-        return !zip.files[n].dir;
-      });
-      return names.reduce(function (chain, name) {
-        return chain.then(function () {
-          return zip.files[name].async("blob").then(function (blob) {
-            var safe = name.replace(/[/\\]/g, "_");
-            return writeFileToDir(dir, safe, blob);
-          });
-        });
-      }, Promise.resolve());
-    });
+  function extractZipToCache(version, zip) {
+    if (window.KpvBundleCache && KpvBundleCache.extractZipToVersion) {
+      return KpvBundleCache.extractZipToVersion(version, zip);
+    }
+    return Promise.reject(new Error("Install latest KPV.wgt (missing bundle-cache.js)"));
   }
 
   function readCachedVersion() {
@@ -343,8 +330,13 @@
       .then(function (buf) {
         return applyBundleZip(buf, manifest.bundleSha256);
       })
-      .then(extractZipToCache)
+      .then(function (zip) {
+        return extractZipToCache(remote, zip);
+      })
       .then(function () {
+        if (window.KpvBundleCache && KpvBundleCache.setCachedVersion) {
+          KpvBundleCache.setCachedVersion(remote);
+        }
         setCachedVersion(remote);
         maybeAnnounce(remote, manifest);
         window.location.reload();

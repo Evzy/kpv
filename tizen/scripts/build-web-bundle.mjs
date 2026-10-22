@@ -10,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(root, "..");
 
 const bundleFiles = [
+  "bundle-cache.js",
   "main.js",
   "style.css",
   "watch.html",

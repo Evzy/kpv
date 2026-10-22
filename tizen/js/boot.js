@@ -30,6 +30,32 @@
     }
   }
 
+  function tryResolveMain(paths, idx) {
+    if (idx >= paths.length) {
+      loadPackaged();
+      return;
+    }
+    tizen.filesystem.resolve(
+      paths[idx],
+      function (mainFile) {
+        var cssPath = paths[idx].replace(/main\.js$/i, "style.css");
+        tizen.filesystem.resolve(
+          cssPath,
+          function (cssFile) {
+            swapStylesheet(cssFile);
+          },
+          function () {},
+          "r",
+        );
+        appendScript(mainFile.toURI(), loadPackaged);
+      },
+      function () {
+        tryResolveMain(paths, idx + 1);
+      },
+      "r",
+    );
+  }
+
   function loadFromHotCache() {
     var cachedVer = "";
     try {
@@ -41,22 +67,11 @@
       loadPackaged();
       return;
     }
-    tizen.filesystem.resolve(
-      "documents/" + CACHE_DIR + "/main.js",
-      function (mainFile) {
-        tizen.filesystem.resolve(
-          "documents/" + CACHE_DIR + "/style.css",
-          function (cssFile) {
-            swapStylesheet(cssFile);
-          },
-          function () {},
-          "r",
-        );
-        appendScript(mainFile.toURI(), loadPackaged);
-      },
-      loadPackaged,
-      "r",
-    );
+    var paths =
+      typeof KpvBundleCache !== "undefined"
+        ? KpvBundleCache.listMainJsCandidates(cachedVer)
+        : ["documents/" + CACHE_DIR + "/main.js"];
+    tryResolveMain(paths, 0);
   }
 
   loadFromHotCache();
