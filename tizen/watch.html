@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>KPV — Watch</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body class="watch-body" tabindex="0">
+  <div id="player-loading" class="player-loading-screen player-loading-screen--hud" aria-live="polite">
+    <div class="player-loading-center">
+      <div class="player-spinner" aria-hidden="true"></div>
+      <p id="loading-text" class="player-loading-text">Starting…</p>
+      <pre id="watch-hud-log" class="watch-hud-log"></pre>
+    </div>
+  </div>
+  <p id="player-status" class="player-status"></p>
+  <script src="jszip.min.js"></script>
+  <script src="bootstrap.js" data-entry="watch"></script>
+</body>
+</html>

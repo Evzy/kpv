@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>KPV catalog smoke test (PC browser)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #111; color: #eee; padding: 24px; }
+    input { width: min(640px, 100%); padding: 8px; }
+    button { margin-top: 8px; padding: 8px 16px; }
+    pre { background: #222; padding: 12px; overflow: auto; max-height: 50vh; }
+  </style>
+</head>
+<body>
+  <h1>KPV API smoke test</h1>
+  <p>Does not prove AVPlay on TV; only checks catalog JSON from your PC browser (CORS may block some sites).</p>
+  <label>Site URL <input id="site" type="url" placeholder="http://192.168.68.62:8765" /></label><br />
+  <button id="go" type="button">Fetch catalog</button>
+  <pre id="out"></pre>
+  <script>
+    document.getElementById("go").onclick = async () => {
+      const site = document.getElementById("site").value.trim().replace(/\/+$/, "");
+      const out = document.getElementById("out");
+      out.textContent = "Trying…";
+      const bases = [];
+      try {
+        const u = new URL(site);
+        if (!u.hostname.startsWith("api.")) bases.push(u.protocol + "//api." + u.hostname);
+        bases.push(site);
+      } catch (e) {
+        out.textContent = "Invalid URL";
+        return;
+      }
+      for (const api of bases) {
+        const url = api + "/api/streams";
+        try {
+          const res = await fetch(url, { headers: { Accept: "application/json" } });
+          const text = await res.text();
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const json = JSON.parse(text);
+          const n = (json.streams || []).reduce((a, b) => a + (b.streams || []).length, 0);
+          out.textContent = "OK via " + api + "\nCategories: " + (json.streams || []).length + ", channels: " + n + "\n\n" + text.slice(0, 2000);
+          return;
+        } catch (err) {
+          out.textContent = "Failed " + url + ": " + err.message + "\n";
+        }
+      }
+    };
+  </script>
+</body>
+</html>

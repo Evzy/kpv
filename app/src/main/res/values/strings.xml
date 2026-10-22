@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KPV</string>
+    <string name="settings">Settings</string>
+    <string name="settings_title">Source</string>
+    <string name="site_origin">Site URL</string>
+    <string name="hint_site">https://…</string>
+    <string name="save_and_reload">Save and reload</string>
+    <string name="settings_site_required">Enter a site URL.</string>
+    <string name="companion_enable">TV companion mode (LAN)</string>
+    <string name="companion_pin_waiting">Pairing PIN for TV: %1$s</string>
+    <string name="companion_url_format">TV URL: %1$s</string>
+    <string name="companion_paired_count">Paired TVs: %1$d</string>
+    <string name="companion_revoke">Unpair all TVs</string>
+    <string name="companion_keep_app_open">Keep KPV open while the TV plays streams.</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available_message">KPV %1$s is available (you have %2$s).</string>
+    <string name="update_install">Update</string>
+    <string name="update_later">Later</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_allow_installs">Allow installs from KPV, then return to finish the update.</string>
+    <string name="update_failed">Update failed: %1$s</string>
+</resources>

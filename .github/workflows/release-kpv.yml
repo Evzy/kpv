@@ -1,0 +1,174 @@
+# Builds KPV Android APK + Tizen WGT + hot web bundle. Publishes to OWNER/kpv-releases when:
+# - push to main: if release v{version} does not exist yet; or
+# - push tag v*: always publish for that tag.
+# Secret: KPV_RELEASES_TOKEN. See docs/CI_CD.md.
+name: Release KPV
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-kpv-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RELEASES_REPO: ${{ github.repository_owner }}/kpv-releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tizen/package.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Install Tizen npm deps
+        working-directory: tizen
+        run: npm install
+
+      - name: Tizen script tests
+        working-directory: tizen
+        run: npm run test:tizen
+
+      - name: Decode shared debug keystore
+        env:
+          B64: ${{ secrets.KPV_SHARED_DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$B64" ]; then
+            echo "::notice::KPV_SHARED_DEBUG_KEYSTORE_B64 not set — APK uses runner debug key; in-app updates may not replace sideloaded builds."
+          else
+            echo "$B64" | base64 -d > "${{ github.workspace }}/app/ci-shared-debug.keystore"
+          fi
+
+      - name: Unit tests + debug APK
+        env:
+          CI: "true"
+          KPV_SHARED_DEBUG_KEYSTORE: ${{ github.workspace }}/app/ci-shared-debug.keystore
+          KPV_SHARED_DEBUG_STORE_PASSWORD: ${{ secrets.KPV_SHARED_DEBUG_STORE_PASSWORD }}
+          KPV_SHARED_DEBUG_KEY_ALIAS: ${{ secrets.KPV_SHARED_DEBUG_KEY_ALIAS }}
+          KPV_SHARED_DEBUG_KEY_PASSWORD: ${{ secrets.KPV_SHARED_DEBUG_KEY_PASSWORD }}
+          UPDATE_GITHUB_OWNER: ${{ github.repository_owner }}
+          UPDATE_GITHUB_REPO: kpv-releases
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Package Tizen WGT + web bundle
+        working-directory: tizen
+        env:
+          KPV_GITHUB_OWNER: ${{ github.repository_owner }}
+        run: |
+          npm run package
+          npm run bundle:web
+
+      - name: Generate TV manifest
+        env:
+          KPV_GITHUB_OWNER: ${{ github.repository_owner }}
+        run: |
+          export KPV_BUNDLE_SHA256="$(cat release/bundle-sha256.txt | tr -d '\n')"
+          node scripts/generate-tv-manifest.mjs
+
+      - name: Verify release/version alignment
+        run: node scripts/check-release-version.mjs
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kpv-release-assets
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            tizen/KPV.wgt
+            release/kpv-web-bundle.zip
+            release/kpv-tv-manifest.json
+
+      - name: Resolve release tag and filenames
+        id: meta
+        if: github.event_name == 'push'
+        run: |
+          set -e
+          V=$(node -e "console.log(JSON.parse(require('fs').readFileSync('release/version.json','utf8')).version)")
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAG="v${V}"
+            echo "mode=main" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${{ github.ref_name }}"
+            echo "mode=tag" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
+          cp "app/build/outputs/apk/debug/app-debug.apk" "KPV-v${V}-debug.apk"
+          cp "tizen/KPV.wgt" "KPV.wgt"
+          cp "release/kpv-web-bundle.zip" "kpv-web-bundle.zip"
+          cp "release/kpv-tv-manifest.json" "kpv-tv-manifest.json"
+          echo "apk=KPV-v${V}-debug.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Check if release already exists
+        id: check
+        if: github.event_name == 'push'
+        env:
+          TOKEN: ${{ secrets.KPV_RELEASES_TOKEN }}
+          REPO: ${{ env.RELEASES_REPO }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          MODE: ${{ steps.meta.outputs.mode }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "exists=skip" >> "$GITHUB_OUTPUT"
+            echo "::notice::KPV_RELEASES_TOKEN not set — skipping publish to kpv-releases"
+            exit 0
+          fi
+          if [ "$MODE" = "tag" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/releases/tags/${TAG}")
+          if [ "$CODE" = "200" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Release ${TAG} already exists on ${REPO} — skipping publish"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release to kpv-releases
+        if: github.event_name == 'push' && steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: ${{ env.RELEASES_REPO }}
+          token: ${{ secrets.KPV_RELEASES_TOKEN }}
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: main
+          name: KPV ${{ steps.meta.outputs.tag }}
+          files: |
+            ${{ steps.meta.outputs.apk }}
+            KPV.wgt
+            kpv-web-bundle.zip
+            kpv-tv-manifest.json
+          generate_release_notes: true

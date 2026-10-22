@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="kpv_bg">#010208</color>
+    <color name="kpv_surface">#12151E</color>
+    <color name="kpv_surface_elevated">#1A1F2B</color>
+    <color name="kpv_text_primary">#E5E7EB</color>
+    <color name="kpv_text_secondary">#9CA3AF</color>
+    <color name="kpv_accent">#3B82F6</color>
+    <color name="kpv_divider">#252A36</color>
+</resources>

@@ -1,0 +1,8 @@
+{
+  "version": "1.0.7",
+  "versionCode": 8,
+  "wgtShellVersion": "1.0.32",
+  "minWgtShell": "1.0.32",
+  "forceWgtInstall": false,
+  "githubOwner": "Evzy"
+}

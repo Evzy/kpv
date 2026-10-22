@@ -1,0 +1,12 @@
+# Copy to local.properties (gitignored). Used for Android builds only.
+
+# Optional: same debug keystore as CI (see docs/CI_CD.md)
+# debug.storeFile=app/ci-shared-debug.keystore
+# debug.storePassword=
+# debug.keyAlias=
+# debug.keyPassword=
+
+# Optional: override GitHub releases feed for update testing
+# UPDATE_GITHUB_OWNER=Evzy
+# UPDATE_GITHUB_REPO=kpv-releases
+# UPDATE_GITHUB_TOKEN=

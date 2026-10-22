@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>KPV — Player</title>
+  <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+    #msg {
+      display: flex; position: fixed; inset: 0; align-items: center; justify-content: center;
+      color: #e5e7eb; font: 24px system-ui, sans-serif; text-align: center; padding: 48px;
+      background: rgba(0,0,0,0.8); z-index: 2;
+    }
+    #hint {
+      position: fixed; left: 0; right: 0; bottom: 20px; text-align: center; z-index: 3;
+      color: #e5e7eb; font: 20px system-ui, sans-serif; font-weight: 600;
+      text-shadow: 0 2px 10px #000;
+    }
+  </style>
+  <script src="hls.min.js"></script>
+</head>
+<body tabindex="0">
+  <video id="v" autoplay playsinline></video>
+  <div id="msg">Loading stream…</div>
+  <p id="hint" class="hidden" aria-hidden="true"></p>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var u = params.get("url") || "";
+      var title = params.get("t") || "Stream";
+      var v = document.getElementById("v");
+      var msg = document.getElementById("msg");
+      var hint = document.getElementById("hint");
+
+      function exit() {
+        window.location.href = "index.html";
+      }
+
+      function onBack(e) {
+        if (e.keyCode === 10009 || e.key === "Back" || e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          exit();
+        }
+      }
+      document.addEventListener("keydown", onBack, true);
+      window.addEventListener("keydown", onBack, true);
+
+      try {
+        if (window.tizen && tizen.tvinputdevice) {
+          ["Back", "Return"].forEach(function (k) {
+            try { tizen.tvinputdevice.registerKey(k); } catch (e) {}
+          });
+        }
+      } catch (e) {}
+
+      function ok() {
+        msg.style.display = "none";
+        hint.style.display = "none";
+        document.body.focus();
+      }
+      function fail(t) {
+        msg.style.display = "flex";
+        msg.textContent = t + "\n\nPress Back to return.";
+      }
+
+      if (!u) {
+        fail("No stream URL.");
+        return;
+      }
+
+      var referer = params.get("ref") || params.get("embed") || "";
+
+      if (window.Hls && Hls.isSupported()) {
+        var hlsConfig = { enableWorker: false };
+        if (referer.startsWith("http")) {
+          hlsConfig.xhrSetup = function (xhr) {
+            try {
+              xhr.setRequestHeader("Referer", referer);
+            } catch (e) {}
+          };
+        }
+        var hls = new Hls(hlsConfig);
+        hls.loadSource(u);
+        hls.attachMedia(v);
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+          v.muted = true;
+          v.play().then(function () {
+            v.muted = false;
+            ok();
+          }).catch(function () {
+            v.muted = true;
+            v.play();
+            ok();
+          });
+        });
+        hls.on(Hls.Events.ERROR, function (_, data) {
+          if (!data.fatal) return;
+          fail("Hls.js: " + (data.details || data.type || "error"));
+        });
+        return;
+      }
+      if (v.canPlayType("application/vnd.apple.mpegurl")) {
+        v.src = u;
+        v.addEventListener("playing", ok);
+        v.addEventListener("error", function () {
+          fail("Native HLS failed.");
+        });
+        v.muted = true;
+        v.play().catch(function () {});
+        return;
+      }
+      fail("HLS not supported on this TV.");
+    })();
+  </script>
+</body>
+</html>

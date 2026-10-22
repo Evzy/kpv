@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KPV — PC playback test</title>
+  <script src="hls.min.js"></script>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 24px; background: #111; color: #eee; }
+    video { width: 100%; max-width: 960px; background: #000; }
+    input { width: 100%; max-width: 960px; padding: 8px; margin: 8px 0; }
+    button { padding: 10px 16px; margin-right: 8px; }
+    #log { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 13px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <h1>KPV PC playback test (Hls.js)</h1>
+  <p>Same path as TV <code>hls-shell.html</code> — verifies a URL before sideloading the WGT.</p>
+  <label>Stream URL <input id="url" type="url" value="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" /></label>
+  <label>Referer (optional) <input id="ref" type="url" placeholder="https://yoursite.com/embed/…" /></label>
+  <button type="button" id="go">Play</button>
+  <p id="log"></p>
+  <video id="v" controls playsinline></video>
+  <script>
+    (function () {
+      var v = document.getElementById("v");
+      var log = document.getElementById("log");
+      var hls;
+      function say(t) { log.textContent = t; }
+      document.getElementById("go").addEventListener("click", function () {
+        var u = document.getElementById("url").value.trim();
+        var ref = document.getElementById("ref").value.trim();
+        if (hls) { hls.destroy(); hls = null; }
+        if (!u) { say("Enter a URL"); return; }
+        if (!window.Hls || !Hls.isSupported()) { say("Hls.js not loaded"); return; }
+        var cfg = { enableWorker: true };
+        if (ref.startsWith("http")) {
+          cfg.xhrSetup = function (xhr) { xhr.setRequestHeader("Referer", ref); };
+        }
+        hls = new Hls(cfg);
+        hls.loadSource(u);
+        hls.attachMedia(v);
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+          say("MANIFEST_PARSED — playing");
+          v.play().catch(function () {});
+        });
+        hls.on(Hls.Events.ERROR, function (_, data) {
+          if (data.fatal) say("ERROR: " + (data.details || data.type));
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

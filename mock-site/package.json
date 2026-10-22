@@ -1,0 +1,7 @@
+{
+  "name": "KPV-mock-site",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  }
+}

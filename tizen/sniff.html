@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>KPV — Resolve</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+  <style>
+    .sniff-frame {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      opacity: 0.02;
+      border: 0;
+      z-index: 1;
+    }
+    .sniff-hud {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      z-index: 5;
+      padding: 48px;
+    }
+    .sniff-hud--minimal {
+      top: auto;
+      bottom: 24px;
+      left: 24px;
+      right: 24px;
+      height: auto;
+      inset: auto;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 16px 24px;
+      border-radius: 12px;
+    }
+    .sniff-text {
+      color: #e5e7eb;
+      font: 26px/1.45 system-ui, sans-serif;
+      text-align: center;
+      white-space: pre-wrap;
+      max-width: 960px;
+    }
+  </style>
+</head>
+<body class="watch-body" tabindex="0">
+  <iframe
+    id="sniff-frame"
+    class="sniff-frame"
+    title="Embed resolver"
+    allow="autoplay; fullscreen; encrypted-media"
+    referrerpolicy="no-referrer-when-downgrade"
+  ></iframe>
+  <div id="sniff-hud" class="sniff-hud">
+    <p id="sniff-text" class="sniff-text">Starting…</p>
+  </div>
+  <script src="avplay-play.js"></script>
+  <script src="site.js"></script>
+  <script src="embed-engine.js"></script>
+  <script src="sniff.js"></script>
+</body>
+</html>
