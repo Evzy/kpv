@@ -27,12 +27,23 @@
     window.location.href = "index.html";
   }
 
+  function isBackKey(e) {
+    if (!e) return false;
+    return (
+      e.keyCode === 10009 ||
+      e.keyCode === 461 ||
+      e.keyCode === 27 ||
+      e.key === "Back" ||
+      e.key === "XF86Back" ||
+      e.key === "Escape"
+    );
+  }
+
   function onBackKey(e) {
-    if (e.keyCode === 10009 || e.key === "Back" || e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      exitCatalog();
-    }
+    if (!isBackKey(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    exitCatalog();
   }
 
   function onEnterKey(e) {
@@ -43,6 +54,12 @@
 
   document.addEventListener("keydown", onBackKey, true);
   window.addEventListener("keydown", onBackKey, true);
+  document.addEventListener("tizenhwkey", (e) => {
+    if (e && e.keyName === "back") {
+      e.preventDefault();
+      exitCatalog();
+    }
+  });
   document.addEventListener("keydown", onEnterKey, true);
 
   try {

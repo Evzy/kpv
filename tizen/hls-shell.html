@@ -47,6 +47,12 @@
       }
       document.addEventListener("keydown", onBack, true);
       window.addEventListener("keydown", onBack, true);
+      document.addEventListener("tizenhwkey", function (e) {
+        if (e && e.keyName === "back") {
+          e.preventDefault();
+          exit();
+        }
+      });
 
       try {
         if (window.tizen && tizen.tvinputdevice) {

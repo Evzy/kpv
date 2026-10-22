@@ -2,7 +2,7 @@
   "name": "kpv-tizen",
   "private": true,
   "type": "module",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "KPV catalog player for Samsung Tizen TV",
   "scripts": {
     "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-kpv-icon.ps1",

@@ -52,6 +52,23 @@
     if (loading) loading.classList.remove("hidden");
   }
 
+  /** Stop AVPlay and restore opaque UI so Back/OK reach the page (Samsung eats keys over the player). */
+  function releasePlaybackForInput() {
+    AvplayPlay.stop();
+    paused = false;
+    if (loading) loading.classList.remove("hidden");
+    try {
+      document.body.focus();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function showIdleMessage(msg) {
+    releasePlaybackForInput();
+    step(msg);
+  }
+
   function hideLoading() {
     if (loading) loading.classList.add("hidden");
   }
@@ -71,16 +88,22 @@
     window.location.href = "index.html";
   }
 
-  function onBackKey(e) {
-    if (!isBackKey(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    exitWatch();
-  }
-
-  function onPlayPauseKey(e) {
-    if (!TvKeys.isPlayPause(e)) return;
-    if (!AvplayPlay.isActive() && !paused) return;
+  function onWatchKeyDown(e) {
+    if (isBackKey(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      exitWatch();
+      return;
+    }
+    if (typeof TvKeys === "undefined" || !TvKeys.isPlayPause(e)) return;
+    if (!AvplayPlay.isActive() && !paused) {
+      if (/retry|Stream lost|failed/i.test(loadingText ? loadingText.textContent : "")) {
+        e.preventDefault();
+        e.stopPropagation();
+        restartFromNetwork(false);
+      }
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     if (!paused) {
@@ -99,16 +122,14 @@
     }
   }
 
-  document.addEventListener("keydown", onBackKey, true);
-  window.addEventListener("keydown", onBackKey, true);
+  document.addEventListener("keydown", onWatchKeyDown, true);
+  window.addEventListener("keydown", onWatchKeyDown, true);
   document.addEventListener("tizenhwkey", (e) => {
     if (e && e.keyName === "back") {
       e.preventDefault();
       exitWatch();
     }
   });
-  document.addEventListener("keydown", onPlayPauseKey, true);
-  window.addEventListener("keydown", onPlayPauseKey, true);
 
   try {
     if (typeof tizen !== "undefined" && tizen.tvinputdevice) {
@@ -215,7 +236,7 @@
         openEmbedSniffer(resolved.embed);
         return;
       }
-      step(noStreamMessage(resolved));
+      showIdleMessage(noStreamMessage(resolved));
       return;
     }
 
@@ -229,7 +250,7 @@
         await resolveAndPlay(true);
         return;
       }
-      step(`${e.message}\nPress Play/OK to retry · Back for channels.`);
+      showIdleMessage(`${e.message}\nPress Play/OK to retry · Back for channels.`);
     }
   }
 
@@ -248,7 +269,7 @@
       try {
         await resolveAndPlay(true);
       } catch (e) {
-        step(`${e.message}\nPress Play/OK to retry · Back for channels.`);
+        showIdleMessage(`${e.message}\nPress Play/OK to retry · Back for channels.`);
       }
       recovering = false;
       return;
@@ -265,7 +286,7 @@
       }
     }
 
-    step("Stream lost.\nPress Play/OK to retry · Back for channels.");
+    showIdleMessage("Stream lost.\nPress Play/OK to retry · Back for channels.");
     recovering = false;
   }
 
@@ -278,5 +299,5 @@
     await resolveAndPlay(false);
   }
 
-  run().catch((e) => step(`${e.message}\nPress Back.`));
+  run().catch((e) => showIdleMessage(`${e.message}\nPress Back.`));
 })();

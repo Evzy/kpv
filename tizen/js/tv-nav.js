@@ -17,6 +17,8 @@ const TvNav = (() => {
       if (typeof tizen === "undefined" || !tizen.tvinputdevice) return;
       const names = [
         "Menu",
+        "Back",
+        "Return",
         "Enter",
         "MediaEnter",
         "ColorF0Red",

@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.13";
+const KPV_APP_VERSION = "1.0.14";
 
 
 /* global window */
@@ -967,6 +967,8 @@ const TvNav = (() => {
       if (typeof tizen === "undefined" || !tizen.tvinputdevice) return;
       const names = [
         "Menu",
+        "Back",
+        "Return",
         "Enter",
         "MediaEnter",
         "ColorF0Red",
@@ -1790,6 +1792,32 @@ const SettingsPanel = (() => {
   btnRefresh.addEventListener("click", () => reloadCatalog());
   TvNav.wireRefreshButton(() => reloadCatalog());
 
+  function isBackEvent(e) {
+    if (typeof TvKeys !== "undefined" && TvKeys.isBack(e)) return true;
+    return e.keyCode === 10009 || e.keyCode === 461 || e.key === "Back" || e.key === "Escape";
+  }
+
+  function handleBrowseBack(e) {
+    if (!isBackEvent(e)) return false;
+    const player = document.getElementById("player");
+    if (player && !player.classList.contains("hidden")) {
+      Player.hideScreen();
+      e.preventDefault();
+      return true;
+    }
+    if (SettingsPanel.handleBack(e)) return true;
+    if (
+      !SettingsPanel.isOpen() &&
+      !status.classList.contains("hidden") &&
+      catalogEl.classList.contains("hidden")
+    ) {
+      openSettings();
+      e.preventDefault();
+      return true;
+    }
+    return false;
+  }
+
   document.addEventListener("keydown", (e) => {
     const gear = document.getElementById("btn-settings");
     if (
@@ -1806,15 +1834,17 @@ const SettingsPanel = (() => {
     if (SettingsPanel.isOpen() && SettingsPanel.handleKeyDown(e)) return;
     if (!SettingsPanel.isOpen() && CatalogNav.handleKeyDown(e)) return;
     TvNav.onKeyDown(e, { openSettings });
+    handleBrowseBack(e);
+  });
 
-    if (e.keyCode === 10009 || e.key === "Back" || e.key === "Escape") {
-      if (!document.getElementById("player").classList.contains("hidden")) {
-        Player.hideScreen();
-        e.preventDefault();
-        return;
-      }
-      if (SettingsPanel.handleBack(e)) return;
-    }
+  document.addEventListener("tizenhwkey", (e) => {
+    if (!e || e.keyName !== "back") return;
+    handleBrowseBack({
+      keyCode: 10009,
+      key: "Back",
+      preventDefault: () => e.preventDefault(),
+      stopPropagation: () => {},
+    });
   });
 
   reloadCatalog();
