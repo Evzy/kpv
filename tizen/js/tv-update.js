@@ -40,10 +40,16 @@ const TvUpdate = (() => {
     }
   }
 
-  function xhrGet(url, responseType) {
+  function withCacheBust(url) {
+    const sep = String(url).indexOf("?") >= 0 ? "&" : "?";
+    return String(url) + sep + "_=" + Date.now();
+  }
+
+  function xhrGet(url, responseType, bust) {
+    const fetchUrl = bust ? withCacheBust(url) : url;
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("GET", url, true);
+      xhr.open("GET", fetchUrl, true);
       xhr.timeout = FETCH_MS;
       if (responseType) xhr.responseType = responseType;
       xhr.onload = () => {
@@ -74,7 +80,7 @@ const TvUpdate = (() => {
     const version = String(manifest.bundleVersion || "");
     if (!version || !manifest.bundleUrl) throw new Error("Invalid manifest");
     await loadJSZip();
-    const buf = await xhrGet(manifest.bundleUrl, "arraybuffer");
+    const buf = await xhrGet(manifest.bundleUrl, "arraybuffer", true);
     const zip = await JSZip.loadAsync(buf);
     await KpvBundleCache.extractZipToVersion(version, zip);
     KpvBundleCache.setCachedVersion(version);
@@ -102,7 +108,9 @@ const TvUpdate = (() => {
     const run = state.running || runningVersion();
     let text = run ? "v" + run : "KPV";
     if (state.latest && compare(state.latest, run) > 0) {
-      text += " · latest v" + state.latest;
+      text += " · GitHub v" + state.latest;
+    } else if (state.latest && compare(state.latest, run) === 0) {
+      text += " · up to date";
     } else if (state.status === "downloading") {
       text += " · updating…";
     } else if (state.status === "failed") {
@@ -118,7 +126,7 @@ const TvUpdate = (() => {
     let latest = "";
     let manifest = null;
     try {
-      const text = await xhrGet(MANIFEST_URL);
+      const text = await xhrGet(MANIFEST_URL, undefined, true);
       manifest = JSON.parse(text);
       latest = String(manifest.bundleVersion || "");
     } catch (e) {
@@ -166,7 +174,8 @@ const TvUpdate = (() => {
       return state;
     }
     if (opts.toast && state.status === "current") {
-      showToast("KPV is up to date (v" + state.running + ").");
+      const gh = state.latest ? " · GitHub v" + state.latest : "";
+      showToast("KPV is up to date (running v" + state.running + gh + ").");
     }
     return state;
   }

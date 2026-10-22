@@ -35,10 +35,16 @@
     return 0;
   }
 
-  function xhrGet(url, responseType) {
+  function withCacheBust(url) {
+    var sep = String(url).indexOf("?") >= 0 ? "&" : "?";
+    return String(url) + sep + "_=" + Date.now();
+  }
+
+  function xhrGet(url, responseType, bust) {
+    var fetchUrl = bust ? withCacheBust(url) : url;
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
-      xhr.open("GET", url, true);
+      xhr.open("GET", fetchUrl, true);
       xhr.timeout = FETCH_TIMEOUT_MS;
       if (responseType) xhr.responseType = responseType;
       xhr.onload = function () {
@@ -326,7 +332,7 @@
     if (!remote || compareTriple(parseTriple(remote), parseTriple(running)) <= 0) {
       return;
     }
-    xhrGet(manifest.bundleUrl, "arraybuffer")
+    xhrGet(manifest.bundleUrl, "arraybuffer", true)
       .then(function (buf) {
         return applyBundleZip(buf, manifest.bundleSha256);
       })
@@ -348,7 +354,7 @@
   }
 
   function runBackgroundUpdate() {
-    xhrGet(MANIFEST_URL, "text")
+    xhrGet(MANIFEST_URL, "text", true)
       .then(function (text) {
         return JSON.parse(text);
       })
