@@ -16,8 +16,6 @@ object ApiCatalogFetcher {
         return null
     }
 
-    fun fetchFromJson(body: String): List<StreamCategory>? = parse(body)
-
     private fun parse(body: String): List<StreamCategory>? {
         val root = JSONObject(body)
         val nowSec = root.optLong("timestamp", System.currentTimeMillis() / 1000L)
