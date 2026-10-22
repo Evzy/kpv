@@ -12,7 +12,14 @@ const TvKeys = (() => {
 
   function isBack(e) {
     if (!e) return false;
-    return e.keyCode === 10009 || e.key === "Back" || e.key === "Escape";
+    return (
+      e.keyCode === 10009 ||
+      e.keyCode === 461 ||
+      e.keyCode === 27 ||
+      e.key === "Back" ||
+      e.key === "XF86Back" ||
+      e.key === "Escape"
+    );
   }
 
   const PLAY_PAUSE = new Set([19, 415, 417, 463, 10252, 65307]);

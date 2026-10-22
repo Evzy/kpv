@@ -30,6 +30,22 @@
             android:contentDescription="@null"
             android:elevation="4dp"
             android:visibility="gone" />
+
+        <View
+            android:id="@+id/poster_loading_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#8C000000"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/poster_loading_spinner"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="@color/kpv_accent"
+            android:visibility="gone" />
     </FrameLayout>
 
     <TextView

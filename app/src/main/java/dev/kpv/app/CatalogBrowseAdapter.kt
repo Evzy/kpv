@@ -18,6 +18,12 @@ class CatalogBrowseAdapter(
 
     private val rowPool = RecyclerView.RecycledViewPool()
     private var items: List<BrowseItem> = emptyList()
+    var loadingStreamUri: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            notifyDataSetChanged()
+        }
 
     fun submitItems(newItems: List<BrowseItem>) {
         items = newItems
@@ -57,13 +63,14 @@ class CatalogBrowseAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
             is BrowseItem.Header -> (holder as HeaderHolder).bind(item.title)
-            is BrowseItem.Row -> (holder as RowHolder).bind(item.channels)
+            is BrowseItem.Row -> (holder as RowHolder).bind(item.channels, loadingStreamUri)
             is BrowseItem.Channel -> StreamCardBinder.bind(
                 holder.itemView,
                 item.listing,
                 cardWidthPx,
                 posterHeightPx,
                 onChannelClick,
+                loading = item.listing.streamUri == loadingStreamUri,
             )
         }
     }
@@ -107,7 +114,8 @@ class CatalogBrowseAdapter(
             }
         }
 
-        fun bind(channels: List<ChannelListing>) {
+        fun bind(channels: List<ChannelListing>, loadingUri: String?) {
+            adapter.loadingStreamUri = loadingUri
             adapter.submitList(channels)
         }
     }

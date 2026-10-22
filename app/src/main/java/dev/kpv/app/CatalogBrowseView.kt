@@ -65,6 +65,10 @@ class CatalogBrowseView(
         browseAdapter.submitItems(items)
     }
 
+    fun setLoadingStream(streamUri: String?) {
+        browseAdapter.loadingStreamUri = streamUri
+    }
+
     private fun gridColumns(): Int {
         val widthDp = resources.configuration.screenWidthDp
         return when {

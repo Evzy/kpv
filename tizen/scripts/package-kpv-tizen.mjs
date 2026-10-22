@@ -92,6 +92,7 @@ async function stagePackage({ version, appId, packageId, appName, hello }) {
     "playback-cache.js",
     "stream-resolve.js",
     "tizen-play.js",
+    "tv-keys.js",
     "main.js",
     "style.css",
     "icon.png",

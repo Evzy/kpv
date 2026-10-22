@@ -1,5 +1,17 @@
 /* global AvplayPlay, Site, StreamResolve, TizenPlay, TvKeys, PlaybackCache, Companion */
 (function watchPage() {
+  function isBackKey(e) {
+    if (typeof TvKeys !== "undefined" && TvKeys.isBack(e)) return true;
+    if (!e) return false;
+    return (
+      e.keyCode === 10009 ||
+      e.keyCode === 461 ||
+      e.keyCode === 27 ||
+      e.key === "Back" ||
+      e.key === "XF86Back" ||
+      e.key === "Escape"
+    );
+  }
   const APP_VER = "1.0.31";
 
   function readPayload() {
@@ -60,11 +72,10 @@
   }
 
   function onBackKey(e) {
-    if (TvKeys.isBack(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      exitWatch();
-    }
+    if (!isBackKey(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    exitWatch();
   }
 
   function onPlayPauseKey(e) {
@@ -90,6 +101,12 @@
 
   document.addEventListener("keydown", onBackKey, true);
   window.addEventListener("keydown", onBackKey, true);
+  document.addEventListener("tizenhwkey", (e) => {
+    if (e && e.keyName === "back") {
+      e.preventDefault();
+      exitWatch();
+    }
+  });
   document.addEventListener("keydown", onPlayPauseKey, true);
   window.addEventListener("keydown", onPlayPauseKey, true);
 

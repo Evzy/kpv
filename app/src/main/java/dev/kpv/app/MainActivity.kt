@@ -257,14 +257,16 @@ class MainActivity : ComponentActivity(), CompanionHost {
         if (resolver != null) return
         selected = channel
         autoRetried = false
+        catalogView.setLoadingStream(channel.streamUri)
         catalogView.isEnabled = false
-        status.visibility = android.view.View.VISIBLE
-        status.text = "Starting ${channel.title}…"
+        status.visibility = android.view.View.GONE
         val iframe = channel.playerIframeUrl.takeIf { it.startsWith("http") }
         resolver = StreamResolver(this, resolveHost, channel.streamUri, iframe) { stream ->
             resolver = null
+            catalogView.setLoadingStream(null)
             catalogView.isEnabled = true
             if (stream == null) {
+                status.visibility = android.view.View.VISIBLE
                 status.text = "Couldn't start ${channel.title}. Try again."
             } else {
                 status.visibility = android.view.View.GONE

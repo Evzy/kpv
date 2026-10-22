@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.11";
+const KPV_APP_VERSION = "1.0.12";
 
 
 /* global window */
@@ -212,7 +212,14 @@ const TvKeys = (() => {
 
   function isBack(e) {
     if (!e) return false;
-    return e.keyCode === 10009 || e.key === "Back" || e.key === "Escape";
+    return (
+      e.keyCode === 10009 ||
+      e.keyCode === 461 ||
+      e.keyCode === 27 ||
+      e.key === "Back" ||
+      e.key === "XF86Back" ||
+      e.key === "Escape"
+    );
   }
 
   const PLAY_PAUSE = new Set([19, 415, 417, 463, 10252, 65307]);
@@ -1631,6 +1638,26 @@ const SettingsPanel = (() => {
   const catalogEl = document.getElementById("catalog");
   const btnRefresh = document.getElementById("btn-refresh");
   let catalogBusy = false;
+  let loadingCard = null;
+
+  function setCardLoading(card, loading) {
+    if (loadingCard && loadingCard !== card) {
+      loadingCard.classList.remove("card--loading");
+    }
+    loadingCard = loading ? card : null;
+    if (card) card.classList.toggle("card--loading", loading);
+  }
+
+  async function playFromCard(card, channel) {
+    setCardLoading(card, true);
+    try {
+      await Player.play(channel);
+    } catch (err) {
+      setCardLoading(card, false);
+      setStatus(`Couldn't start ${channel.title}. Try again.`);
+      TvNav.focusRefresh();
+    }
+  }
 
   SettingsPanel.init({
     onSaved() {
@@ -1665,6 +1692,7 @@ const SettingsPanel = (() => {
           <span class="card-poster-wrap">
             <img src="${escapeAttr(ch.poster)}" alt="" loading="lazy" />
             <span class="live-dot" aria-hidden="true"></span>
+            <span class="card-tile-spinner" aria-hidden="true"></span>
           </span>
           <div class="title">${escapeHtml(ch.title)}</div>
           <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
@@ -1675,11 +1703,11 @@ const SettingsPanel = (() => {
             img.classList.add("poster-missing");
           });
         }
-        btn.addEventListener("click", () => Player.play(ch));
+        btn.addEventListener("click", () => playFromCard(btn, ch));
         btn.addEventListener("keydown", (e) => {
           if (e.keyCode === TvNav.KEY.ENTER) {
             e.preventDefault();
-            Player.play(ch);
+            playFromCard(btn, ch);
           }
         });
         row.appendChild(btn);

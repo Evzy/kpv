@@ -12,6 +12,13 @@ class ChannelCardAdapter(
     private val onClick: (ChannelListing) -> Unit,
 ) : ListAdapter<ChannelListing, ChannelCardAdapter.Holder>(Diff) {
 
+    var loadingStreamUri: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            notifyDataSetChanged()
+        }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
         val view = StreamCardBinder.inflate(parent)
         view.layoutParams = RecyclerView.LayoutParams(cardWidthPx, cardHeightPx)
@@ -20,7 +27,15 @@ class ChannelCardAdapter(
     }
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
-        StreamCardBinder.bind(holder.itemView, getItem(position), cardWidthPx, posterHeightPx, onClick)
+        val channel = getItem(position)
+        StreamCardBinder.bind(
+            holder.itemView,
+            channel,
+            cardWidthPx,
+            posterHeightPx,
+            onClick,
+            loading = channel.streamUri == loadingStreamUri,
+        )
     }
 
     override fun onViewRecycled(holder: Holder) {

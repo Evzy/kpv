@@ -37,6 +37,7 @@ await cp(path.join(root, "js", "stream-resolve.js"), path.join(root, "stream-res
 await cp(path.join(root, "js", "tizen-play.js"), path.join(root, "tizen-play.js"));
 await cp(path.join(root, "js", "site.js"), path.join(root, "site.js"));
 await cp(path.join(root, "js", "companion.js"), path.join(root, "companion.js"));
+await cp(path.join(root, "js", "tv-keys.js"), path.join(root, "tv-keys.js"));
 const hlsMin = path.join(root, "node_modules", "hls.js", "dist", "hls.min.js");
 try {
   await cp(hlsMin, path.join(root, "hls.min.js"));

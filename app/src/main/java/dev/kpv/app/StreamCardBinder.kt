@@ -19,11 +19,15 @@ object StreamCardBinder {
         posterWidthPx: Int,
         posterHeightPx: Int,
         onClick: (ChannelListing) -> Unit,
+        loading: Boolean = false,
     ) {
         view.findViewById<TextView>(R.id.title).text = channel.title
         view.findViewById<TextView>(R.id.tag).text = channel.tag.ifBlank { "Live" }
         view.findViewById<View>(R.id.live_indicator).visibility =
             if (channel.isLive) View.VISIBLE else View.GONE
+        val loadingVis = if (loading) View.VISIBLE else View.GONE
+        view.findViewById<View>(R.id.poster_loading_scrim).visibility = loadingVis
+        view.findViewById<View>(R.id.poster_loading_spinner).visibility = loadingVis
         val poster = view.findViewById<ImageView>(R.id.poster)
         if (channel.posterUrl.isBlank()) {
             Glide.with(view).clear(poster)
