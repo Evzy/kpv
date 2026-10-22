@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.27";
+const KPV_APP_VERSION = "1.0.28";
 
 
 /* global window */
@@ -1542,8 +1542,24 @@ const SettingsPanel = (() => {
     }
   }
 
+  function focusedSettingsField() {
+    if (!panel) return null;
+    const ae = document.activeElement;
+    if (!ae || !panel.contains(ae)) return null;
+    return textFields().includes(ae) ? ae : null;
+  }
+
+  /** Samsung often opens the keyboard without our OK/unlock flag still set. */
   function isTextEntryActive() {
-    return editingTextField !== null;
+    if (editingTextField !== null) return true;
+    return focusedSettingsField() !== null;
+  }
+
+  function syncEditingFieldFromFocus() {
+    const focused = focusedSettingsField();
+    if (focused && !focused.readOnly) {
+      editingTextField = focused;
+    }
   }
 
   function dismissTextEntry() {
@@ -1561,6 +1577,7 @@ const SettingsPanel = (() => {
 
   function captureTextFieldKeys(e) {
     if (!isOpen() || !isTextEntryActive()) return;
+    syncEditingFieldFromFocus();
     const code = e.keyCode;
     if (isBackKey(e)) {
       dismissTextEntry();
@@ -1572,6 +1589,13 @@ const SettingsPanel = (() => {
     if (code === TvNav.KEY.DOWN || code === TvNav.KEY.UP) {
       if (code === TvNav.KEY.DOWN) rowIndex += 1;
       else rowIndex -= 1;
+      dismissTextEntry();
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+      return;
+    }
+    if (typeof TvKeys !== "undefined" && TvKeys.isSelect(e)) {
       dismissTextEntry();
       e.preventDefault();
       e.stopPropagation();
@@ -1775,8 +1799,9 @@ const SettingsPanel = (() => {
     }
     if (cur === input || cur === companionPhone || cur === companionPin || cur === testHlsInput) {
       unlockTextField(cur);
+      rowIndex = list.indexOf(cur);
       cur.focus();
-      showHint("Keyboard open — Back or ↓ exits field, then ↑↓ to move rows.");
+      showHint("Keyboard open — Done or Back closes keyboard · ↓ next row · Save to pair.");
     }
   }
 
@@ -1859,7 +1884,13 @@ const SettingsPanel = (() => {
     const code = e.keyCode;
 
     if (isTextEntryActive()) {
+      syncEditingFieldFromFocus();
       if (isBackKey(e)) {
+        dismissTextEntry();
+        e.preventDefault();
+        return true;
+      }
+      if (typeof TvKeys !== "undefined" && TvKeys.isSelect(e)) {
         dismissTextEntry();
         e.preventDefault();
         return true;
@@ -1896,6 +1927,7 @@ const SettingsPanel = (() => {
 
   function handleBack(e) {
     if (!isOpen()) return false;
+    syncEditingFieldFromFocus();
     if (isTextEntryActive()) {
       dismissTextEntry();
       if (e.preventDefault) e.preventDefault();
@@ -1942,10 +1974,16 @@ const SettingsPanel = (() => {
     for (const el of textFields()) {
       el.addEventListener("focusin", () => {
         if (!isOpen()) return;
-        if (el.readOnly || editingTextField !== el) {
-          el.blur();
-          if (isOpen() && !editingTextField) applyRowFocus();
+        if (editingTextField === el) return;
+        if (!el.readOnly) {
+          editingTextField = el;
+          lockTextFields();
+          el.readOnly = false;
+          el.tabIndex = 0;
+          return;
         }
+        el.blur();
+        if (!editingTextField) applyRowFocus();
       });
       el.addEventListener("keydown", captureTextFieldKeys, true);
     }

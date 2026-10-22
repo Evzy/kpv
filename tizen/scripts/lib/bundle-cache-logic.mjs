@@ -27,9 +27,9 @@ export function mainJsPath(version, root = "kpv-hot-cache") {
   return `${versionDirPath(version, root)}/main.js`;
 }
 
-/** @param {number} [nowMs] */
-export function freshSlugForVersion(version, nowMs = Date.now()) {
-  return `${slugVersion(version)}-${nowMs.toString(36)}`;
+/** @param {number} [nowMs] @param {string} [rand] */
+export function freshSlugForVersion(version, nowMs = Date.now(), rand = "abc12") {
+  return `${slugVersion(version)}-${nowMs.toString(36)}-${rand}`;
 }
 
 export function listMainJsCandidates({ cachedVer, slug, root = "kpv-hot-cache" }) {

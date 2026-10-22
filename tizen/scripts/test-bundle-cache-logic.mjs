@@ -9,9 +9,9 @@ import {
 assert.equal(slugVersion("v1.0.27"), "1.0.27");
 assert.equal(slugVersion(" 1.0.27-beta "), "1.0.27-beta");
 
-const slugA = freshSlugForVersion("1.0.27", 1_700_000_000_000);
-const slugB = freshSlugForVersion("1.0.27", 1_700_000_000_001);
-assert.match(slugA, /^1\.0\.27-[0-9a-z]+$/);
+const slugA = freshSlugForVersion("1.0.27", 1_700_000_000_000, "aaaaaa");
+const slugB = freshSlugForVersion("1.0.27", 1_700_000_000_001, "bbbbbb");
+assert.match(slugA, /^1\.0\.27-[0-9a-z]+-[0-9a-z]+$/);
 assert.notEqual(slugA, slugB);
 
 const paths = listMainJsCandidates({

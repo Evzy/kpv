@@ -33,7 +33,8 @@ var KpvBundleCache = (function () {
   }
 
   function freshSlugForVersion(version) {
-    return slugVersion(version) + "-" + Date.now().toString(36);
+    var rand = Math.random().toString(36).slice(2, 8);
+    return slugVersion(version) + "-" + Date.now().toString(36) + "-" + rand;
   }
 
   function resolvePath(path, mode) {
@@ -56,9 +57,60 @@ var KpvBundleCache = (function () {
     });
   }
 
-  function createEmptySubdir(rootDir, slug) {
+  function clearDirContents(dir) {
+    return new Promise(function (resolve) {
+      try {
+        dir.listFiles(
+          function (files) {
+            if (!files || !files.length) {
+              resolve();
+              return;
+            }
+            var i = 0;
+            function next() {
+              if (i >= files.length) {
+                resolve();
+                return;
+              }
+              var entry = files[i++];
+              var fname = entry && entry.name ? entry.name : String(entry);
+              deleteFileQuiet(dir, fname).then(next);
+            }
+            next();
+          },
+          function () {
+            resolve();
+          },
+        );
+      } catch (_) {
+        resolve();
+      }
+    });
+  }
+
+  /** Open cache subfolder, clearing files if it already exists (orphan from failed extract). */
+  function openOrClearSubdir(rootDir, slug) {
     return new Promise(function (resolve, reject) {
-      rootDir.createDirectory(slug, resolve, reject, false);
+      rootDir.createDirectory(
+        slug,
+        function (dir) {
+          clearDirContents(dir).then(function () {
+            resolve(dir);
+          });
+        },
+        function () {
+          resolvePath(dirPathForSlug(slug), "rw")
+            .then(function (dir) {
+              return clearDirContents(dir).then(function () {
+                resolve(dir);
+              });
+            })
+            .catch(function () {
+              rootDir.createDirectory(slug, resolve, reject, false);
+            });
+        },
+        true,
+      );
     });
   }
 
@@ -137,7 +189,7 @@ var KpvBundleCache = (function () {
     var oldSlug = readStoredSlug();
 
     return ensureRootDir().then(function (rootDir) {
-      return createEmptySubdir(rootDir, newSlug).then(function (dir) {
+      return openOrClearSubdir(rootDir, newSlug).then(function (dir) {
         var names = Object.keys(zip.files).filter(function (n) {
           return !zip.files[n].dir;
         });
