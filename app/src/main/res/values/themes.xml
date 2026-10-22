@@ -6,4 +6,9 @@
         <item name="android:statusBarColor">@color/kpv_bg</item>
         <item name="android:navigationBarColor">@color/kpv_bg</item>
     </style>
+
+    <style name="Theme.Kpv.MediaRouterButton" parent="Theme.AppCompat">
+        <item name="android:windowBackground">@color/kpv_surface</item>
+        <item name="colorPrimary">@color/kpv_accent</item>
+    </style>
 </resources>

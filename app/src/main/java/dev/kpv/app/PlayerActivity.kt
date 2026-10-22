@@ -110,7 +110,7 @@ class PlayerActivity : Activity() {
                 ),
             )
             if (!TvHelper.isTelevision(this@PlayerActivity)) {
-                val cast = MediaRouteButton(this@PlayerActivity).apply {
+                val cast = CastUi.mediaRouteButton(this@PlayerActivity).apply {
                     contentDescription = getString(R.string.cast)
                     visibility = android.view.View.GONE
                 }

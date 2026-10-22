@@ -127,7 +127,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
             )
             if (!TvHelper.isTelevision(this@MainActivity)) {
-                val cast = MediaRouteButton(this@MainActivity).apply {
+                val cast = CastUi.mediaRouteButton(this@MainActivity).apply {
                     contentDescription = getString(R.string.cast)
                     visibility = android.view.View.GONE
                 }
