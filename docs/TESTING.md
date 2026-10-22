@@ -37,14 +37,37 @@ Use an **Android TV** system image in SDK Manager if you need leanback layout; p
 
 ## Samsung Tizen TV
 
-There is **no Tizen TV emulator in CI**. Hot-cache and `tizen.filesystem` need real Tizen.
+There is **no Tizen TV emulator in CI**. Hot-cache and `tizen.filesystem` need real Tizen (emulator or TV).
 
-1. Install **[Tizen Studio](https://developer.tizen.org/development/tizen-studio/download)** with **TV** platform and **TV emulator** extension.
-2. Build: `cd tizen && npm run package`
-3. Sideload **`KPV.wgt`** to the TV emulator (Certificate Manager + Device Manager, same flow as Apps2Samsung on hardware).
-4. **Web Inspector**: Tizen Studio → your emulator → debug `index.html` (Refresh, Settings, cache toasts).
+### One-time setup on this PC
 
-**Cloud hardware:** [Samsung Remote Test Lab](https://developer.samsung.com/remotetestlab) for filesystem quirks that differ from the emulator.
+Base **Tizen Studio 6.0 CLI** is installed under **`%USERPROFILE%\tizen-studio`** (or run):
+
+```powershell
+.\scripts\install-tizen-studio.ps1
+```
+
+**Samsung TV SDK + TV emulator** (large download; **must run PowerShell as Administrator** once):
+
+```powershell
+.\scripts\install-tizen-tv-sdk.ps1
+```
+
+If TV extension activation fails, open **`%USERPROFILE%\tizen-studio\package-manager\package-manager.exe`**, add **Samsung Tizen TV SDK**, then install **TV-SAMSUNG-Public-Emulator** packages.
+
+Optional full IDE: [Tizen Studio download](https://developer.tizen.org/development/tizen-studio/download) (same SDK path).
+
+### Run KPV on the TV emulator
+
+```powershell
+. .\scripts\set-tizen-env.ps1
+# Start a TV emulator from Tizen Device Manager (GUI)
+.\scripts\install-kpv-wgt-emulator.ps1
+```
+
+Then use **Web Inspector** on the emulator for Settings / Refresh / hot-cache toasts.
+
+**Cloud hardware:** [Samsung Remote Test Lab](https://developer.samsung.com/remotetestlab) if the emulator differs from your Samsung TV.
 
 **Browser-only (partial):** `cd tizen && npm run test:sniff` / `test:play` — embed and playback helpers, not WGT install or hot bundle.
 

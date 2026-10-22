@@ -11,6 +11,7 @@ release/kpv-tv-manifest.json
 tizen/bootstrap.js
 tizen/js/app-version.js
 tizen/jszip.min.js
+tools/tizen-install/
 tizen/node_modules/
 tizen/.cache/
 tizen/KPV.wgt
