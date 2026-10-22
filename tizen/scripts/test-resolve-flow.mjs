@@ -8,8 +8,8 @@ import vm from "node:vm";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = readFileSync(path.join(root, "js", "stream-resolve.js"), "utf8");
 
-function load({ payload = null, decoder = null, cached = null } = {}) {
-  const calls = { decoder: 0, cachePut: [] };
+function load({ payload = null, decoder = null, cached = null, probeStatus = 200 } = {}) {
+  const calls = { decoder: 0, cachePut: [], cacheClear: [], probes: [] };
   const cache = new Map(cached ? [[cached.uri, cached.entry]] : []);
   const ctx = {
     Site: {
@@ -40,7 +40,24 @@ function load({ payload = null, decoder = null, cached = null } = {}) {
         calls.cachePut.push(uri);
         cache.set(uri, entry);
       },
+      clear: (uri) => {
+        calls.cacheClear.push(uri);
+        cache.delete(uri);
+      },
     },
+    XMLHttpRequest: class {
+      open(method, url) {
+        this.url = url;
+      }
+      send() {
+        calls.probes.push(this.url);
+        this.status = probeStatus;
+        setTimeout(() => (probeStatus === 0 ? this.onerror() : this.onload()), 0);
+      }
+      abort() {}
+    },
+    setTimeout,
+    clearTimeout,
     Companion: new Proxy(
       {},
       {
@@ -85,6 +102,20 @@ const DECODED = "https://edge.test/secure/x/index.m3u8";
   assert.equal(r.hls, LIVE);
   assert.equal(r.fromCache, true);
   assert.equal(calls.decoder, 0);
+  assert.deepEqual(calls.probes, [LIVE], "cached link is checked before use");
+}
+
+for (const probeStatus of [403, 0]) {
+  const { StreamResolve, calls } = load({
+    cached: { uri: "ch", entry: { hls: LIVE, embed: "https://embed.test/embed/ch" } },
+    decoder: DECODED,
+    probeStatus,
+  });
+  const r = await StreamResolve.resolveForWatch({ uri: "ch", hlsUrl: LIVE });
+  assert.equal(r.hls, DECODED, `dead cached link (${probeStatus}) is replaced`);
+  assert.equal(r.fromCache, false);
+  assert.deepEqual(calls.cacheClear, ["ch"]);
+  assert.deepEqual(calls.cachePut, ["ch"]);
 }
 
 {

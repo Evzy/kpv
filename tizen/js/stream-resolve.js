@@ -67,6 +67,28 @@ const StreamResolve = (() => {
     }
   }
 
+  const PROBE_TIMEOUT_MS = 6_000;
+
+  /** Decoded playlist links go 403 long before the expiry in their path, so check before reuse. */
+  function playlistAlive(url) {
+    if (typeof XMLHttpRequest === "undefined") return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      const timer = setTimeout(() => {
+        xhr.abort();
+        resolve(false);
+      }, PROBE_TIMEOUT_MS);
+      const done = (ok) => {
+        clearTimeout(timer);
+        resolve(ok);
+      };
+      xhr.open("GET", url, true);
+      xhr.onload = () => done(xhr.status >= 200 && xhr.status < 300);
+      xhr.onerror = () => done(false);
+      xhr.send();
+    });
+  }
+
   async function fetchStreamPayload(uri) {
     if (!uri) return null;
     for (const api of Site.apiCandidates()) {
@@ -100,9 +122,14 @@ const StreamResolve = (() => {
     if (!skipCache && uri && typeof PlaybackCache !== "undefined") {
       const cached = PlaybackCache.get(uri);
       if (cached && cached.hls) {
-        hls = cached.hls;
-        embed = embed || cached.embed || "";
-        fromCache = true;
+        if (await playlistAlive(cached.hls)) {
+          hls = cached.hls;
+          embed = embed || cached.embed || "";
+          fromCache = true;
+        } else {
+          PlaybackCache.clear(uri);
+          if (hls === cached.hls) hls = "";
+        }
       }
     }
 
