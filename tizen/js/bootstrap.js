@@ -55,6 +55,21 @@
     });
   }
 
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  function ensureJSZip() {
+    if (window.JSZip) return Promise.resolve();
+    return loadScript("jszip.min.js");
+  }
+
   function sha256Hex(buffer) {
     if (!window.crypto || !window.crypto.subtle) {
       return Promise.reject(new Error("crypto.subtle unavailable"));
@@ -89,7 +104,6 @@
       "<p>Installed shell: <code>" +
       WGT_SHELL_VERSION +
       "</code></p>";
-    document.body.innerHTML = "";
     document.body.appendChild(wrap);
   }
 
@@ -172,7 +186,9 @@
       if (expectedSha256 && hex.toLowerCase() !== String(expectedSha256).toLowerCase()) {
         throw new Error("Bundle SHA-256 mismatch");
       }
-      return JSZip.loadAsync(arrayBuffer);
+      return ensureJSZip().then(function () {
+        return JSZip.loadAsync(arrayBuffer);
+      });
     });
   }
 
@@ -182,69 +198,14 @@
         return !zip.files[n].dir;
       });
       return names.reduce(function (chain, name) {
-        return chain.then(function (uris) {
+        return chain.then(function () {
           return zip.files[name].async("blob").then(function (blob) {
             var safe = name.replace(/[/\\]/g, "_");
-            return writeFileToDir(dir, safe, blob).then(function (uri) {
-              uris[name] = uri;
-              return uris;
-            });
+            return writeFileToDir(dir, safe, blob);
           });
         });
-      }, Promise.resolve({}));
+      }, Promise.resolve());
     });
-  }
-
-  function loadScript(src) {
-    return new Promise(function (resolve, reject) {
-      var s = document.createElement("script");
-      s.src = src;
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-
-  function loadStylesheet(href) {
-    var l = document.createElement("link");
-    l.rel = "stylesheet";
-    l.href = href;
-    document.head.appendChild(l);
-  }
-
-  function cachedUri(map, name) {
-    if (map && map[name]) return map[name];
-    return name;
-  }
-
-  function loadIndexApp(fileUris) {
-    loadStylesheet(cachedUri(fileUris, "style.css"));
-    return loadScript(cachedUri(fileUris, "main.js"));
-  }
-
-  function loadWatchApp(fileUris) {
-    loadStylesheet(cachedUri(fileUris, "style.css"));
-    var order = [
-      "avplay-play.js",
-      "site.js",
-      "companion.js",
-      "playback-cache.js",
-      "stream-resolve.js",
-      "tizen-play.js",
-      "watch.js",
-    ];
-    return order.reduce(function (p, name) {
-      return p.then(function () {
-        return loadScript(cachedUri(fileUris, name));
-      });
-    }, Promise.resolve());
-  }
-
-  function loadEmbeddedFallback() {
-    if (entry === "watch") {
-      return loadWatchApp(null);
-    }
-    return loadIndexApp(null);
   }
 
   function readCachedVersion() {
@@ -270,6 +231,7 @@
     } catch (_) {}
   }
 
+  /** Non-blocking: index.html loads main.js first; we only check manifest / cache bundle. */
   function runWithManifest(manifest) {
     var shell = parseTriple(WGT_SHELL_VERSION);
     var minShell = parseTriple(manifest.minWgtShell || "0.0.0");
@@ -279,70 +241,35 @@
     }
     var cached = readCachedVersion();
     var remote = String(manifest.bundleVersion || "");
-    var needDownload = remote && compareTriple(parseTriple(remote), parseTriple(cached)) > 0;
-
-    function listCacheUris() {
-      return resolveDocumentsDir().then(function (dir) {
-        return new Promise(function (resolve, reject) {
-          dir.listFiles(
-            function (files) {
-              var map = {};
-              (files || []).forEach(function (f) {
-                map[f.name] = f.toURI();
-              });
-              resolve(map);
-            },
-            reject,
-          );
-        });
-      });
+    if (!remote || compareTriple(parseTriple(remote), parseTriple(cached)) <= 0) {
+      return;
     }
-
-    function loadFromCacheOrEmbedded() {
-      if (!cached) return loadEmbeddedFallback();
-      return listCacheUris()
-        .then(function (uris) {
-          if (entry === "watch") return loadWatchApp(uris);
-          return loadIndexApp(uris);
-        })
-        .catch(function () {
-          return loadEmbeddedFallback();
-        });
-    }
-
-    if (!needDownload) {
-      return loadFromCacheOrEmbedded().then(function () {
-        if (remote) maybeAnnounce(remote, manifest);
-      });
-    }
-    return xhrGet(manifest.bundleUrl, "arraybuffer")
+    xhrGet(manifest.bundleUrl, "arraybuffer")
       .then(function (buf) {
         return applyBundleZip(buf, manifest.bundleSha256);
       })
       .then(extractZipToCache)
-      .then(function (uris) {
-        setCachedVersion(remote);
-        if (entry === "watch") return loadWatchApp(uris);
-        return loadIndexApp(uris);
-      })
       .then(function () {
+        setCachedVersion(remote);
         maybeAnnounce(remote, manifest);
       })
       .catch(function (err) {
-        console.warn("Hot update failed, using embedded bundle:", err);
-        return loadEmbeddedFallback();
+        console.warn("Background bundle download failed:", err);
       });
   }
 
-  function run() {
+  function runBackgroundUpdate() {
     xhrGet(MANIFEST_URL, "text")
       .then(function (text) {
         return JSON.parse(text);
       })
       .then(runWithManifest)
-      .catch(function () {
-        return loadEmbeddedFallback();
-      });
+      .catch(function () {});
+  }
+
+  function run() {
+    if (entry === "watch") return;
+    runBackgroundUpdate();
   }
 
   if (document.readyState === "loading") {
