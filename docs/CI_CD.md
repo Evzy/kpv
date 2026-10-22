@@ -47,7 +47,7 @@ The TV app loads **`boot.js`** first: if a hot bundle was applied before, it loa
 
 ### When you do **not** need a manual `.wgt` reinstall
 
-Typical releases that only change Tizen **web logic** (files in `tizen/js/`, CSS, catalog/player/companion JS):
+Typical releases that only change Tizen **web logic** (files in `tizen/js/`, CSS, catalog/player JS):
 
 - Bump **`version`** (and Android **`versionCode`**) in `release/version.json`.
 - Leave **`wgtShellVersion`** / **`minWgtShell`** unchanged (or only bump shell if you also ship a new `.wgt` for other reasons).

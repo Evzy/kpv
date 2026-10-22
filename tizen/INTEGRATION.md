@@ -74,7 +74,7 @@ example.com fails on **Tizen layer 1 inside the widget** (JW + WASM in blob ifra
 
 ## Practical ways to merge into KPV
 
-### Option A — **Companion mode** (recommended, matches WVC)
+### Option A — **Companion mode** (removed in v1.0.43; the TV now runs the embed decoder itself)
 
 1. **Android KPV** (already sniffs): after `StreamResolver`, expose on LAN:
    - `POST /play` `{ "url", "referer", "headers" }` or WebSocket push.
