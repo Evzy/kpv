@@ -460,6 +460,8 @@ const SettingsPanel = (() => {
     btnSave = document.getElementById("btn-save");
     btnCancel = document.getElementById("btn-cancel");
     btnTestPlay = document.getElementById("btn-test-play");
+    const legacyTestHls = document.querySelector("#test-hls-url");
+    if (legacyTestHls) (legacyTestHls.closest(".field") || legacyTestHls).remove();
 
     hint = document.getElementById("settings-hint");
     siteUrlCurrent = document.getElementById("site-url-current");
