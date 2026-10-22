@@ -7,8 +7,10 @@ if (-not (Test-Path $Ts)) {
 $env:TIZEN_STUDIO = $Ts
 $paths = @(
     (Join-Path $Ts "tools"),
+    (Join-Path $Ts "tools\emulator\bin"),
     (Join-Path $Ts "tools\ide\bin"),
-    (Join-Path $Ts "platforms\tizen-6.0\tizen\tools")
+    (Join-Path $Ts "platforms\tizen-6.0\tizen\tools"),
+    (Join-Path $Ts "platforms\tizen-10.0\tizen\tools")
 ) | Where-Object { Test-Path $_ }
 if ($paths.Count) {
     $env:PATH = ($paths -join ";") + ";" + $env:PATH

@@ -71,6 +71,30 @@ Then use **Web Inspector** on the emulator for Settings / Refresh / hot-cache to
 
 **Browser-only (partial):** `cd tizen && npm run test:sniff` / `test:play` — embed and playback helpers, not WGT install or hot bundle.
 
+### Reference QA TV (physical — authoritative)
+
+| Field | Value |
+|-------|--------|
+| Model | **QA55Q60AAWXXY** (2021 Q60A 55″) |
+| OS | **Tizen 6.0** (does not upgrade to 7+ on this hardware) |
+| Firmware | **T-NKLAUABC-2301.1** (BT - S) |
+
+The installed **T-samsung-10.0-x86_64** emulator is **not** a stand-in for this set (filesystem, keyboard, and performance differ). Use the emulator for smoke tests; sign off **hot Refresh**, **Settings/PIN**, and **playback** on this TV.
+
+**Checklist on the reference TV:**
+
+1. Sideload latest **`KPV-v*.wgt`** from [kpv-releases](https://github.com/Evzy/kpv-releases) when the shell/cache fix changes.
+2. **Refresh** — progress should move through download → saving → restart; header ends at **`v… · up to date`** matching GitHub.
+3. **Settings** — site URL, companion PIN, **Save**; Back/Done should dismiss the keyboard without leaving Settings.
+4. Play one live channel and one test stream if companion is used.
+
+### Install and debug from this PC (replaces Apps2Samsung)
+
+1. TV: **Apps** → **1 2 3 4 5** → Developer mode **On**, **Host PC IP** = this PC → restart TV.
+2. Once: `%USERPROFILE%\tizen-studio\tools\certificate-manager\certificate-manager.exe` → **+** → **Samsung** → **TV** → profile name **`kpv`** → sign in with your Samsung account → include the TV's DUID (pick the connected TV).
+3. Deploy: `.\scripts\deploy-tv.ps1` (first time after Apps2Samsung: add `-Reinstall`; resets site URL and pairing once).
+4. Debug: `.\scripts\deploy-tv.ps1 -SkipBuild -Debug` → DevTools on `http://127.0.0.1:9222`.
+
 ## What we cannot automate yet
 
 - Tizen **overwrite is not allowed** / hot-bundle install (needs Tizen FS APIs on device or emulator).
