@@ -26,6 +26,7 @@ const bundleFiles = [
   "wasm-lower.js",
   "gasm-resolve.js",
   "tizen-play.js",
+  "tv-keys.js",
   "hls-shell.html",
   "hls.min.js",
 ];

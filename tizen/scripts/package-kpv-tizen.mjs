@@ -92,6 +92,8 @@ async function stagePackage({ version, appId, packageId, appName, hello }) {
     "site.js",
     "companion.js",
     "playback-cache.js",
+    "wasm-lower.js",
+    "gasm-resolve.js",
     "stream-resolve.js",
     "tizen-play.js",
     "tv-keys.js",
