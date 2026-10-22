@@ -1,4 +1,4 @@
-const KPV_APP_VERSION = "1.0.26";
+const KPV_APP_VERSION = "1.0.27";
 
 
 /* global window */
@@ -1576,13 +1576,6 @@ const SettingsPanel = (() => {
       e.preventDefault();
       e.stopPropagation();
       if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
-      return;
-    }
-    if (typeof TvKeys !== "undefined" && TvKeys.isSelect(e)) {
-      saveAndClose().catch((err) => showHint(err.message || "Save failed."));
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
     }
   }
 
@@ -1783,7 +1776,7 @@ const SettingsPanel = (() => {
     if (cur === input || cur === companionPhone || cur === companionPin || cur === testHlsInput) {
       unlockTextField(cur);
       cur.focus();
-      showHint("Keyboard open — Done saves · Back or ↓ exits field · ↑↓ move rows.");
+      showHint("Keyboard open — Back or ↓ exits field, then ↑↓ to move rows.");
     }
   }
 
@@ -1875,11 +1868,6 @@ const SettingsPanel = (() => {
         if (code === TvNav.KEY.DOWN) rowIndex += 1;
         else rowIndex -= 1;
         dismissTextEntry();
-        e.preventDefault();
-        return true;
-      }
-      if (typeof TvKeys !== "undefined" && TvKeys.isSelect(e)) {
-        saveAndClose().catch((err) => showHint(err.message || "Save failed."));
         e.preventDefault();
         return true;
       }

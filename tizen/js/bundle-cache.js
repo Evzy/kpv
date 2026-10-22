@@ -3,6 +3,7 @@
 var KpvBundleCache = (function () {
   var ROOT = "kpv-hot-cache";
   var LS_KEY = "kpv_bundle_version";
+  var LS_SLUG_KEY = "kpv_bundle_cache_slug";
 
   function slugVersion(version) {
     return String(version || "")
@@ -19,8 +20,20 @@ var KpvBundleCache = (function () {
     return cacheRootPath() + "/" + slugVersion(version);
   }
 
+  function dirPathForSlug(slug) {
+    return cacheRootPath() + "/" + slug;
+  }
+
   function mainJsPath(version) {
     return versionDirPath(version) + "/main.js";
+  }
+
+  function mainJsPathForSlug(slug) {
+    return dirPathForSlug(slug) + "/main.js";
+  }
+
+  function freshSlugForVersion(version) {
+    return slugVersion(version) + "-" + Date.now().toString(36);
   }
 
   function resolvePath(path, mode) {
@@ -37,70 +50,116 @@ var KpvBundleCache = (function () {
     return resolvePath(cacheRootPath(), "rw").catch(function () {
       return resolvePath("documents", "rw").then(function (doc) {
         return new Promise(function (resolve, reject) {
-          doc.createDirectory(ROOT, resolve, reject, true);
+          doc.createDirectory(ROOT, resolve, reject, false);
         });
       });
     });
   }
 
-  /** Recreate an empty folder for this bundle version (no per-file overwrite). */
-  function ensureVersionDir(version) {
-    var slug = slugVersion(version);
-    return ensureRootDir().then(function (rootDir) {
-      return new Promise(function (resolve, reject) {
-        rootDir.createDirectory(slug, resolve, reject, true);
-      });
+  function createEmptySubdir(rootDir, slug) {
+    return new Promise(function (resolve, reject) {
+      rootDir.createDirectory(slug, resolve, reject, false);
+    });
+  }
+
+  function removeSubdirQuiet(rootDir, slug) {
+    if (!slug) return Promise.resolve();
+    return new Promise(function (resolve) {
+      try {
+        rootDir.deleteDirectory(slug, resolve, resolve);
+      } catch (_) {
+        resolve();
+      }
+    });
+  }
+
+  function deleteFileQuiet(dir, name) {
+    return new Promise(function (resolve) {
+      try {
+        dir.deleteFile(name, resolve, resolve);
+      } catch (_) {
+        resolve();
+      }
     });
   }
 
   function writeFile(dir, name, blob) {
-    return new Promise(function (resolve, reject) {
-      dir.createFile(
-        name,
-        false,
-        function (file) {
-          file.openStream(
-            "w",
-            function (stream) {
-              var reader = new FileReader();
-              reader.onload = function () {
-                try {
-                  stream.write(reader.result);
-                  stream.close();
-                  resolve();
-                } catch (e) {
-                  reject(e);
-                }
-              };
-              reader.onerror = reject;
-              reader.readAsArrayBuffer(blob);
-            },
-            reject,
-          );
-        },
-        reject,
-      );
+    return deleteFileQuiet(dir, name).then(function () {
+      return new Promise(function (resolve, reject) {
+        dir.createFile(
+          name,
+          true,
+          function (file) {
+            file.openStream(
+              "w",
+              function (stream) {
+                var reader = new FileReader();
+                reader.onload = function () {
+                  try {
+                    stream.write(reader.result);
+                    stream.close();
+                    resolve();
+                  } catch (e) {
+                    reject(e);
+                  }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(blob);
+              },
+              reject,
+            );
+          },
+          reject,
+        );
+      });
     });
   }
 
+  function readStoredSlug() {
+    try {
+      return localStorage.getItem(LS_SLUG_KEY) || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function persistCachePointers(version, slug) {
+    try {
+      localStorage.setItem(LS_KEY, version);
+      localStorage.setItem(LS_SLUG_KEY, slug);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
   function extractZipToVersion(version, zip) {
-    return ensureVersionDir(version).then(function (dir) {
-      var names = Object.keys(zip.files).filter(function (n) {
-        return !zip.files[n].dir;
-      });
-      return names.reduce(function (chain, name) {
-        return chain.then(function () {
-          var base = name.split("/").pop().split("\\").pop();
-          return zip.files[name].async("blob").then(function (blob) {
-            return writeFile(dir, base, blob);
-          });
+    var newSlug = freshSlugForVersion(version);
+    var oldSlug = readStoredSlug();
+
+    return ensureRootDir().then(function (rootDir) {
+      return createEmptySubdir(rootDir, newSlug).then(function (dir) {
+        var names = Object.keys(zip.files).filter(function (n) {
+          return !zip.files[n].dir;
         });
-      }, Promise.resolve());
+        return names.reduce(function (chain, name) {
+          return chain.then(function () {
+            var base = name.split("/").pop().split("\\").pop();
+            return zip.files[name].async("blob").then(function (blob) {
+              return writeFile(dir, base, blob);
+            });
+          });
+        }, Promise.resolve());
+      }).then(function () {
+        persistCachePointers(version, newSlug);
+        return removeSubdirQuiet(rootDir, oldSlug);
+      });
     });
   }
 
   function listMainJsCandidates(cachedVer) {
     var paths = [];
+    var slug = readStoredSlug();
+    if (slug) paths.push(mainJsPathForSlug(slug));
     if (cachedVer) paths.push(mainJsPath(cachedVer));
     paths.push(cacheRootPath() + "/main.js");
     return paths;
@@ -116,6 +175,7 @@ var KpvBundleCache = (function () {
 
   return {
     LS_KEY: LS_KEY,
+    LS_SLUG_KEY: LS_SLUG_KEY,
     slugVersion: slugVersion,
     mainJsPath: mainJsPath,
     listMainJsCandidates: listMainJsCandidates,
