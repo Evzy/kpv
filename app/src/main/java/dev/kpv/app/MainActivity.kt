@@ -23,7 +23,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.mediarouter.app.MediaRouteButton
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.gms.cast.framework.CastButtonFactory
 
 class MainActivity : ComponentActivity(), CompanionHost {
 
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
     private lateinit var catalogView: CatalogBrowseView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var status: TextView
+    private var castButton: MediaRouteButton? = null
 
     private var catalogLoader: CatalogLoader? = null
     private var resolver: StreamResolver? = null
@@ -123,6 +126,18 @@ class MainActivity : ComponentActivity(), CompanionHost {
                 },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
             )
+            if (!TvHelper.isTelevision(this@MainActivity)) {
+                val cast = MediaRouteButton(this@MainActivity).apply {
+                    contentDescription = getString(R.string.cast)
+                    visibility = android.view.View.GONE
+                }
+                CastButtonFactory.setUpMediaRouteButton(applicationContext, cast)
+                castButton = cast
+                addView(cast, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { marginEnd = dp(8) })
+            }
             addView(settingsButton, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -163,6 +178,11 @@ class MainActivity : ComponentActivity(), CompanionHost {
         }
         setContentView(root)
         catalogView.visibility = android.view.View.GONE
+        if (!TvHelper.isTelevision(this)) {
+            CastController.init(this, ContextCompat.getMainExecutor(this)) {
+                runOnUiThread { updateCastButtonVisibility() }
+            }
+        }
         loadCatalog(initial = true)
         if (savedInstanceState == null) {
             checkForUpdateOnColdStart()
@@ -225,6 +245,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
                 TvCompanion.stop()
                 runOnUiThread {
                     swipeRefresh.isRefreshing = false
+                    updateCastButtonVisibility()
                     if (initial) {
                         status.text = "Couldn't load channels. Pull down to refresh."
                     } else {
@@ -248,6 +269,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
                     catalogView.visibility = android.view.View.VISIBLE
                     swipeRefresh.isRefreshing = false
                     status.visibility = android.view.View.GONE
+                    updateCastButtonVisibility()
                 }
             }.start()
         }.also { it.start() }
@@ -270,10 +292,29 @@ class MainActivity : ComponentActivity(), CompanionHost {
                 status.text = "Couldn't start ${channel.title}. Try again."
             } else {
                 status.visibility = android.view.View.GONE
-                @Suppress("DEPRECATION")
-                startActivityForResult(PlayerActivity.intent(this, stream), REQUEST_PLAY)
+                if (CastController.isConnected() &&
+                    CastController.loadStream(this, stream, channel.title)
+                ) {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.cast_playing_on_tv, channel.title),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                } else {
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(PlayerActivity.intent(this, stream, channel.title), REQUEST_PLAY)
+                }
             }
         }.also { it.start() }
+    }
+
+    private fun updateCastButtonVisibility() {
+        castButton?.visibility =
+            if (catalogReady && !TvHelper.isTelevision(this)) {
+                android.view.View.VISIBLE
+            } else {
+                android.view.View.GONE
+            }
     }
 
     @Deprecated("Deprecated in Java")
@@ -390,6 +431,7 @@ class MainActivity : ComponentActivity(), CompanionHost {
         resolver?.cancel()
         TvCompanion.bindHost(null)
         TvCompanion.stop()
+        CastController.shutdown()
         super.onDestroy()
     }
 

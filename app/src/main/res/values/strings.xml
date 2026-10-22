@@ -22,4 +22,10 @@
     <string name="update_allow_installs">Allow installs from KPV, then return to finish the update.</string>
     <string name="update_failed">Update failed: %1$s</string>
     <string name="update_failed_signature">This update uses a different signing key than your installed KPV (common if you installed v1.0.7 or a PC-built APK). Uninstall KPV, then install the latest APK from GitHub Releases.</string>
+    <string name="cast">Cast</string>
+    <string name="cast_no_wifi">Connect to Wi‑Fi to cast.</string>
+    <string name="cast_relay_failed">Couldn\'t start cast relay on this phone.</string>
+    <string name="cast_session_lost">Cast session lost. Pick the device again.</string>
+    <string name="cast_load_failed">Couldn\'t load stream on the TV.</string>
+    <string name="cast_playing_on_tv">Playing on %1$s</string>
 </resources>
