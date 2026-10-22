@@ -78,6 +78,8 @@ After bumping **`minWgtShell`**, any TV whose installed shell is **older** than 
 
 APK upgrades require the **same signing certificate**. If Android shows **App not installed** when updating, you usually have an older build (e.g. **v1.0.7** or a PC debug APK) signed with a different key than GitHub Releases (**v1.0.8+**). **Uninstall KPV**, then install the latest `KPV-v*-debug.apk` from [kpv-releases](https://github.com/Evzy/kpv-releases). Newer in-app updaters detect this before install and show a clear message.
 
+In-app updates use the **system install screen** (not silent PackageInstaller sessions). If install still fails, download the APK on a PC and run `adb install -r KPV-v*-debug.apk`, or allow **Install unknown apps** for both **KPV** and your **browser/files** app.
+
 CI and local builds can share one debug keystore:
 
 | Secret | Purpose |

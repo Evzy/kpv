@@ -1,10 +1,8 @@
 package dev.kpv.app.update
 
 import android.app.Activity
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -169,45 +167,8 @@ object GithubApkReleaseUpdater {
             }
         }
 
+    /** Opens the system package installer (same path that worked before v1.0.15). */
     fun startPackageInstall(activity: Activity, apkFile: File) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            runCatching { startSessionInstall(activity, apkFile) }
-                .onFailure { startLegacyPackageInstall(activity, apkFile) }
-        } else {
-            startLegacyPackageInstall(activity, apkFile)
-        }
-    }
-
-    private fun startSessionInstall(context: Context, apkFile: File) {
-        val installer = context.packageManager.packageInstaller
-        val params =
-            PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-                setAppPackageName(context.packageName)
-            }
-        val sessionId = installer.createSession(params)
-        val session = installer.openSession(sessionId)
-        apkFile.inputStream().use { input ->
-            session.openWrite("KPV-update", 0, apkFile.length()).use { output ->
-                input.copyTo(output)
-                session.fsync(output)
-            }
-        }
-        val callback =
-            Intent(context, InstallResultReceiver::class.java).apply {
-                action = ACTION_INSTALL_COMPLETE
-            }
-        val pendingFlags =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            } else {
-                PendingIntent.FLAG_UPDATE_CURRENT
-            }
-        val pending = PendingIntent.getBroadcast(context, sessionId, callback, pendingFlags)
-        session.commit(pending.intentSender)
-        session.close()
-    }
-
-    private fun startLegacyPackageInstall(activity: Activity, apkFile: File) {
         val uri =
             FileProvider.getUriForFile(
                 activity,
@@ -217,12 +178,20 @@ object GithubApkReleaseUpdater {
         val intent =
             Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-        activity.startActivity(intent)
+        val pm = activity.packageManager
+        if (intent.resolveActivity(pm) != null) {
+            activity.startActivity(intent)
+            return
+        }
+        val install =
+            Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                data = uri
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        activity.startActivity(install)
     }
-
-    private const val ACTION_INSTALL_COMPLETE = "dev.kpv.app.INSTALL_COMPLETE"
 
     private fun open(url: String, token: String): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {

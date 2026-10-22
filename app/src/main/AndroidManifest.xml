@@ -65,8 +65,5 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <receiver
-            android:name=".update.InstallResultReceiver"
-            android:exported="false" />
     </application>
 </manifest>
