@@ -15,8 +15,8 @@ const cacheDir = path.join(rootDir, ".cache");
 const stagingDir = path.join(cacheDir, "tizen-package");
 
 const defaultAppName = "KPV";
-/** Must match Apps2Samsung author certificate prefix (see DEBUG.md). */
-const defaultPackageId = process.env.TIZEN_PACKAGE_ID || "NuvioTV001";
+/** Tizen package ids are exactly 10 alphanumerics; KPV's own id keeps its storage separate (see DEBUG.md). */
+const defaultPackageId = process.env.TIZEN_PACKAGE_ID || "KpvPlayer1";
 const defaultAppId = process.env.TIZEN_APP_ID || `${defaultPackageId}.KPV`;
 
 function normalizeVersion(version) {

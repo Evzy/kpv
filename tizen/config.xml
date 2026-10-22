@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="https://kpv.local/app" version="1.0.1" viewmodes="maximized">
   <access origin="*" subdomains="true"/>
-  <!-- package must match your Apps2Samsung author id (see DEBUG.md). Default matches NuvioTV001 on this TV. -->
-  <tizen:application id="NuvioTV001.KPV" package="NuvioTV001" required_version="3.0"/>
+  <!-- Own package id: KPV must not share localStorage with other sideloaded apps (see DEBUG.md). -->
+  <tizen:application id="KpvPlayer1.KPV" package="KpvPlayer1" required_version="3.0"/>
   <author href="https://kpv.local">KPV</author>
   <content src="index.html"/>
   <feature name="http://tizen.org/feature/screen.size.all"/>

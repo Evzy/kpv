@@ -2,8 +2,8 @@
 # Prereqs: TV Developer mode Host PC IP = this PC; Samsung certificate profile created in Certificate Manager.
 param(
     [string]$TvIp = "192.168.68.53",
-    [string]$CertProfile = "kpv",
-    [string]$AppId = "NuvioTV001.KPV",
+    [string]$CertProfile = "Kevy",
+    [string]$AppId = "KpvPlayer1.KPV",
     [switch]$SkipBuild,
     [switch]$Reinstall,
     [switch]$Debug
@@ -44,14 +44,20 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if ($Reinstall) {
-    Write-Host "Uninstalling existing $AppId (needed once when switching from Apps2Samsung's certificate) ..."
-    Invoke-Sdb "-s $Target uninstall $AppId" | Out-Null
+    Write-Host "Uninstalling existing $AppId (needed once when it was signed by another certificate) ..."
+    cmd /c "`"$TizenCli`" uninstall -p $AppId -s $Target 2>&1" | Out-Null
 }
 
+# `sdb install` only pushes the file on Samsung TVs; `tizen install` runs the package manager.
 Write-Host "Installing ..."
-$install = Invoke-Sdb "-s $Target install `"$(Join-Path $SignDir 'KPV.wgt')`""
-if ($install -match "signature|certificate|-12") {
-    Write-Error "Install rejected by signature. Run again with -Reinstall (resets site URL / pairing on the TV once)."
+$install = cmd /c "`"$TizenCli`" install -n KPV.wgt -s $Target -- `"$SignDir`" 2>&1"
+$install | ForEach-Object { Write-Host "  $_" }
+$installText = $install -join "`n"
+if ($installText -match "install failed") {
+    if ($installText -match "-12") {
+        Write-Error "Install rejected by signature. Run again with -Reinstall (resets site URL / pairing on the TV once)."
+    }
+    Write-Error "Install failed."
 }
 
 if ($Debug) {
