@@ -6,6 +6,21 @@
 (function kpvBoot() {
   var CACHE_DIR = "kpv-hot-cache";
   var LS_BUNDLE = "kpv_bundle_version";
+  var PACKAGED_VERSION = "__KPV_PACKAGED_VERSION__";
+
+  /** True when `a` is an older x.y.z than `b`; unparseable versions never count as older. */
+  function olderThan(a, b) {
+    var pa = String(a).split(".");
+    var pb = String(b).split(".");
+    if (pa.length !== 3 || pb.length !== 3) return false;
+    for (var i = 0; i < 3; i += 1) {
+      var x = parseInt(pa[i], 10);
+      var y = parseInt(pb[i], 10);
+      if (isNaN(x) || isNaN(y)) return false;
+      if (x !== y) return x < y;
+    }
+    return false;
+  }
 
   function appendScript(src, onError) {
     var s = document.createElement("script");
@@ -66,7 +81,7 @@
       cachedVer = "";
       slug = "";
     }
-    if (typeof tizen === "undefined" || !tizen.filesystem) {
+    if (typeof tizen === "undefined" || !tizen.filesystem || olderThan(cachedVer, PACKAGED_VERSION)) {
       loadPackaged();
       return;
     }

@@ -31,7 +31,14 @@ const jsOrder = [
   "app.js",
 ];
 
-await cp(path.join(root, "js", "boot.js"), path.join(root, "boot.js"));
+await writeFile(
+  path.join(root, "boot.js"),
+  (await readFile(path.join(root, "js", "boot.js"), "utf8")).replace(
+    /__KPV_PACKAGED_VERSION__/g,
+    releaseMeta.version,
+  ),
+  "utf8",
+);
 await cp(path.join(root, "js", "bundle-cache.js"), path.join(root, "bundle-cache.js"));
 await cp(path.join(root, "js", "watch.js"), path.join(root, "watch.js"));
 await cp(path.join(root, "js", "sniff.js"), path.join(root, "sniff.js"));
