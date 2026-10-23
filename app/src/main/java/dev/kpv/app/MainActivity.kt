@@ -193,15 +193,23 @@ class MainActivity : AppCompatActivity() {
         ) {
             val focused = currentFocus
             if (focused != null && focused.isDescendantOf(catalogView)) {
+                // RecyclerView may hand back a same-row card (or the focused one) instead of null.
                 val next = focused.focusSearch(View.FOCUS_UP)
-                val leavesList = next == null || !next.isDescendantOf(catalogView)
-                if (leavesList && !catalogView.canScrollVertically(-1)) {
+                val movesUpInList = next != null && next !== focused &&
+                    next.isDescendantOf(catalogView) && next.screenTop() < focused.screenTop()
+                if (!movesUpInList && !catalogView.canScrollVertically(-1)) {
                     settingsButton.requestFocus()
                     return true
                 }
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun View.screenTop(): Int {
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        return loc[1]
     }
 
     private fun View.isDescendantOf(ancestor: View): Boolean {
