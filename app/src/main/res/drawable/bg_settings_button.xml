@@ -2,8 +2,20 @@
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="@color/kpv_divider">
     <item>
-        <shape android:shape="oval">
-            <solid android:color="@color/kpv_surface_elevated" />
-        </shape>
+        <selector>
+            <item android:state_focused="true">
+                <shape android:shape="oval">
+                    <solid android:color="@color/kpv_surface_elevated" />
+                    <stroke
+                        android:width="3dp"
+                        android:color="@color/kpv_accent" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="oval">
+                    <solid android:color="@color/kpv_surface_elevated" />
+                </shape>
+            </item>
+        </selector>
     </item>
 </ripple>

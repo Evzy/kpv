@@ -1,6 +1,5 @@
 package dev.kpv.app
 
-import android.app.Activity
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
@@ -8,10 +7,20 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ScrollView
+import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updatePadding
+import dev.kpv.app.update.AppUpdateFlow
 
-class SettingsActivity : Activity() {
+class SettingsActivity : AppCompatActivity() {
+
+    private val updateFlow = AppUpdateFlow(this)
+
+    override fun onResume() {
+        super.onResume()
+        updateFlow.onResume()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +70,9 @@ class SettingsActivity : Activity() {
         }
 
         findViewById<Button>(R.id.save).setOnClickListener { saveSiteAndFinish() }
+        findViewById<TextView>(R.id.app_version).text =
+            getString(R.string.settings_installed_version, BuildConfig.VERSION_NAME)
+        findViewById<Button>(R.id.check_updates).setOnClickListener { updateFlow.check(userInitiated = true) }
     }
 
     private fun saveSiteAndFinish(): Boolean {

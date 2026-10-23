@@ -1,19 +1,14 @@
 package dev.kpv.app
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.util.TypedValue
-import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
-import dev.kpv.app.update.GithubApkReleaseInfo
-import dev.kpv.app.update.GithubApkReleaseUpdater
-import dev.kpv.app.update.ReleaseVersionCompare
-import kotlinx.coroutines.launch
+import dev.kpv.app.update.AppUpdateFlow
 import android.view.Gravity
+import android.view.KeyEvent
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
@@ -24,11 +19,9 @@ import androidx.core.view.updatePadding
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 class MainActivity : AppCompatActivity() {
 
-    private var pendingUpdate: GithubApkReleaseInfo? = null
-    private var updateInProgress = false
+    private val updateFlow = AppUpdateFlow(this)
 
     companion object {
-        private const val TAG = "MainActivity"
         private const val REQUEST_PLAY = 1
         private const val REQUEST_SETTINGS = 2
     }
@@ -39,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var catalogView: CatalogBrowseView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var status: TextView
+    private lateinit var settingsButton: ImageButton
     private var castButton: KpvMediaRouteButton? = null
 
     private var catalogLoader: CatalogLoader? = null
@@ -86,7 +80,8 @@ class MainActivity : AppCompatActivity() {
             importantForAccessibility = android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
 
-        val settingsButton = ImageButton(this).apply {
+        settingsButton = ImageButton(this).apply {
+            isFocusable = true
             setImageResource(R.drawable.ic_settings)
             contentDescription = getString(R.string.settings)
             setBackgroundResource(R.drawable.bg_settings_button)
@@ -177,7 +172,7 @@ class MainActivity : AppCompatActivity() {
         }
         loadCatalog(initial = true)
         if (savedInstanceState == null) {
-            checkForUpdateOnColdStart()
+            updateFlow.check(userInitiated = false)
         }
     }
 
@@ -185,11 +180,37 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val pending = pendingUpdate
-        if (pending != null && packageManager.canRequestPackageInstalls()) {
-            pendingUpdate = null
-            downloadAndInstall(pending)
+        updateFlow.onResume()
+    }
+
+    // On TV the grid's section headers aren't focusable, so D-pad up from the top row
+    // would otherwise never leave the list to reach the settings button.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (
+            event.action == KeyEvent.ACTION_DOWN &&
+            event.keyCode == KeyEvent.KEYCODE_DPAD_UP &&
+            TvHelper.isTelevision(this)
+        ) {
+            val focused = currentFocus
+            if (focused != null && focused.isDescendantOf(catalogView)) {
+                val next = focused.focusSearch(View.FOCUS_UP)
+                val leavesList = next == null || !next.isDescendantOf(catalogView)
+                if (leavesList && !catalogView.canScrollVertically(-1)) {
+                    settingsButton.requestFocus()
+                    return true
+                }
+            }
         }
+        return super.dispatchKeyEvent(event)
+    }
+
+    private fun View.isDescendantOf(ancestor: View): Boolean {
+        var v: View? = this
+        while (v != null) {
+            if (v === ancestor) return true
+            v = v.parent as? View
+        }
+        return false
     }
 
     private fun refreshCatalog() {
@@ -327,86 +348,6 @@ class MainActivity : AppCompatActivity() {
             status.text = "${channel.title} stopped. Pick another stream."
         } else {
             status.visibility = android.view.View.GONE
-        }
-    }
-
-    private fun checkForUpdateOnColdStart() {
-        if (!GithubApkReleaseUpdater.isConfigured()) return
-        lifecycleScope.launch {
-            GithubApkReleaseUpdater.fetchLatestApkRelease()
-                .onSuccess { release ->
-                    val installedCode =
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                            packageManager.getPackageInfo(packageName, 0).longVersionCode
-                        } else {
-                            @Suppress("DEPRECATION")
-                            packageManager.getPackageInfo(packageName, 0).versionCode.toLong()
-                        }
-                    val remoteCode = release.versionCode?.toLong()
-                    val codeSaysUpdate = remoteCode == null || remoteCode > installedCode
-                    val versus = ReleaseVersionCompare.compare(release.tagName, BuildConfig.VERSION_NAME)
-                    if (
-                        codeSaysUpdate &&
-                        versus == ReleaseVersionCompare.VersusInstalled.UPDATE_AVAILABLE &&
-                        !isFinishing
-                    ) {
-                        showUpdateDialog(release)
-                    }
-                }
-                .onFailure { Log.i(TAG, "Update check skipped: ${it.message}") }
-        }
-    }
-
-    private fun showUpdateDialog(release: GithubApkReleaseInfo) {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.update_available_title)
-            .setMessage(getString(R.string.update_available_message, release.tagName, "v${BuildConfig.VERSION_NAME}"))
-            .setPositiveButton(R.string.update_install) { _, _ -> startUpdate(release) }
-            .setNegativeButton(R.string.update_later, null)
-            .show()
-    }
-
-    private fun startUpdate(release: GithubApkReleaseInfo) {
-        if (GithubApkReleaseUpdater.ensureInstallFromUnknownSources(this)) {
-            downloadAndInstall(release)
-        } else {
-            pendingUpdate = release
-            Toast.makeText(this, R.string.update_allow_installs, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun downloadAndInstall(release: GithubApkReleaseInfo) {
-        if (updateInProgress) return
-        updateInProgress = true
-        val progress =
-            AlertDialog.Builder(this)
-                .setTitle(R.string.update_downloading)
-                .setView(ProgressBar(this).apply { isIndeterminate = true; setPadding(0, 48, 0, 48) })
-                .setCancelable(false)
-                .show()
-        lifecycleScope.launch {
-            val result = GithubApkReleaseUpdater.downloadApkToCache(this@MainActivity, release.downloadUrl)
-            progress.dismiss()
-            updateInProgress = false
-            result
-                .onSuccess { apk ->
-                    if (!GithubApkReleaseUpdater.canReplaceInstalledApp(this@MainActivity, apk)) {
-                        Toast.makeText(
-                            this@MainActivity,
-                            R.string.update_failed_signature,
-                            Toast.LENGTH_LONG,
-                        ).show()
-                        return@launch
-                    }
-                    GithubApkReleaseUpdater.startPackageInstall(this@MainActivity, apk)
-                }
-                .onFailure {
-                    Toast.makeText(
-                        this@MainActivity,
-                        getString(R.string.update_failed, it.message ?: it.javaClass.simpleName),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
         }
     }
 

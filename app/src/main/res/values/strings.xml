@@ -8,6 +8,12 @@
     <string name="hint_site">https://…</string>
     <string name="save_and_reload">Save and reload</string>
     <string name="settings_site_required">Enter a site URL.</string>
+    <string name="settings_app_title">App</string>
+    <string name="settings_installed_version">Installed version: v%1$s</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_up_to_date">You\'re on the latest version (v%1$s).</string>
+    <string name="update_check_failed">Couldn\'t check for updates: %1$s</string>
     <string name="update_available_title">Update available</string>
     <string name="update_available_message">KPV %1$s is available (you have %2$s).</string>
     <string name="update_install">Update</string>
