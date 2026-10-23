@@ -13,10 +13,11 @@ object StreamLive {
         return false
     }
 
-    fun sortChannels(channels: List<ChannelListing>): List<ChannelListing> {
-        val (live, rest) = channels.partition { it.isLive }
-        return live + rest
-    }
+    private val PINNED_TAGS = setOf("premier league")
+
+    /** Pinned leagues lead their category; live channels lead within each group. */
+    fun sortChannels(channels: List<ChannelListing>): List<ChannelListing> =
+        channels.sortedWith(compareBy({ it.tag.trim().lowercase() !in PINNED_TAGS }, { !it.isLive }))
 
     fun sortCategories(categories: List<StreamCategory>): List<StreamCategory> {
         val mapped =
