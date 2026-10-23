@@ -1,4 +1,5 @@
-/* global Site, Catalog, Player, TvNav, SettingsPanel, CatalogNav, FixtureLine, LiveScores, KPV_APP_VERSION */
+/* global Site, Catalog, Player, TvNav, SettingsPanel, CatalogNav, FixtureLine, LiveScores, CategoryPrefs,
+   CategoryEditor, KPV_APP_VERSION */
 (function init() {
   const verEl = document.getElementById("app-version");
   if (verEl && typeof KPV_APP_VERSION === "string" && KPV_APP_VERSION) {
@@ -53,6 +54,9 @@
     onSaved() {
       reloadCatalog();
     },
+    onCustomize() {
+      CategoryEditor.open({ onClose: rerenderCatalog });
+    },
   });
 
   function setStatus(msg) {
@@ -62,63 +66,68 @@
     TvNav.focusRefresh();
   }
 
+  function makeHead(className, level, name, collapsed, onToggle) {
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = className;
+    head.innerHTML = `<${level}>${escapeHtml(name)}</${level}><span class="category-chevron" aria-hidden="true"></span>`;
+    head.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    head.addEventListener("click", onToggle);
+    head.addEventListener("keydown", (e) => {
+      if (e.keyCode === TvNav.KEY.ENTER) {
+        e.preventDefault();
+        onToggle();
+      }
+    });
+    return head;
+  }
+
+  let lastCategories = null;
+
+  /** Re-applies saved order / hidden items to the last loaded catalog (after Customize). */
+  function rerenderCatalog() {
+    if (lastCategories) renderCatalog(lastCategories);
+  }
+
   function renderCatalog(categories) {
+    lastCategories = categories;
+    const sports = CategoryPrefs.group(categories);
+    CategoryPrefs.rememberKnown(sports);
+    const layout = CategoryPrefs.arrange(sports, CategoryPrefs.load());
+    if (!layout.length) {
+      setStatus("All categories are hidden. Settings → Customize categories to show them.");
+      return;
+    }
     status.classList.add("hidden");
     catalogEl.classList.remove("hidden");
     catalogEl.innerHTML = "";
     const collapsed = CatalogNav.loadCollapsed();
     const nowSec = Math.floor(Date.now() / 1000);
     const fixtureEls = new Map();
-    for (const cat of categories) {
+    for (const sport of layout) {
       const section = document.createElement("section");
       section.className = "category";
-      section.classList.toggle("category--collapsed", collapsed.has(cat.name));
-      const head = document.createElement("button");
-      head.type = "button";
-      head.className = "category-head";
-      head.innerHTML = `<h2>${escapeHtml(cat.name)}</h2><span class="category-chevron" aria-hidden="true"></span>`;
-      head.setAttribute("aria-expanded", collapsed.has(cat.name) ? "false" : "true");
-      head.addEventListener("click", () => CatalogNav.toggleSection(section, cat.name));
-      head.addEventListener("keydown", (e) => {
-        if (e.keyCode === TvNav.KEY.ENTER) {
-          e.preventDefault();
-          CatalogNav.toggleSection(section, cat.name);
+      section.classList.toggle("category--collapsed", collapsed.has(sport.name));
+      section.appendChild(
+        makeHead("category-head", "h2", sport.name, collapsed.has(sport.name), () =>
+          CatalogNav.toggleSection(section, sport.name),
+        ),
+      );
+      for (const league of sport.leagues) {
+        let container = section;
+        if (sport.showLeagues) {
+          const key = CategoryPrefs.leagueKey(sport.name, league.name);
+          const block = document.createElement("div");
+          block.className = "league";
+          block.classList.toggle("league--collapsed", collapsed.has(key));
+          block.appendChild(
+            makeHead("league-head", "h3", league.name, collapsed.has(key), () => CatalogNav.toggleLeague(block, key)),
+          );
+          section.appendChild(block);
+          container = block;
         }
-      });
-      section.appendChild(head);
-      const row = document.createElement("div");
-      row.className = "row";
-      for (const ch of cat.channels) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = ch.isLive ? "card card--live" : "card";
-        btn.innerHTML = `
-          <span class="card-poster-wrap">
-            <img src="${escapeAttr(ch.poster)}" alt="" loading="lazy" />
-            <span class="live-dot" aria-hidden="true"></span>
-            <span class="card-tile-spinner" aria-hidden="true"></span>
-          </span>
-          <div class="title">${escapeHtml(ch.title)}</div>
-          <div class="fixture">${escapeHtml(FixtureLine.timeLine(ch, nowSec) || "")}</div>
-          <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
-        fixtureEls.set(ch, btn.querySelector(".fixture"));
-        const img = btn.querySelector("img");
-        if (img) {
-          img.addEventListener("error", () => {
-            img.removeAttribute("src");
-            img.classList.add("poster-missing");
-          });
-        }
-        btn.addEventListener("click", () => playFromCard(btn, ch));
-        btn.addEventListener("keydown", (e) => {
-          if (e.keyCode === TvNav.KEY.ENTER) {
-            e.preventDefault();
-            playFromCard(btn, ch);
-          }
-        });
-        row.appendChild(btn);
+        container.appendChild(renderRow(league.channels, nowSec, fixtureEls));
       }
-      section.appendChild(row);
       catalogEl.appendChild(section);
     }
     CatalogNav.focusFirst();
@@ -128,8 +137,44 @@
       });
     });
     if (typeof RemoteGuide !== "undefined") {
-      RemoteGuide.say("↑ top bar (Refresh / Settings) · OK on a category to hide/show · OK on a channel to play");
+      RemoteGuide.say("↑ top bar (Refresh / Settings) · OK on a heading to hide/show · OK on a channel to play");
     }
+  }
+
+  function renderRow(channels, nowSec, fixtureEls) {
+    const row = document.createElement("div");
+    row.className = "row";
+    for (const ch of channels) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = ch.isLive ? "card card--live" : "card";
+      btn.innerHTML = `
+        <span class="card-poster-wrap">
+          <img src="${escapeAttr(ch.poster)}" alt="" loading="lazy" />
+          <span class="live-dot" aria-hidden="true"></span>
+          <span class="card-tile-spinner" aria-hidden="true"></span>
+        </span>
+        <div class="title">${escapeHtml(ch.title)}</div>
+        <div class="fixture">${escapeHtml(FixtureLine.timeLine(ch, nowSec) || "")}</div>
+        <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
+      fixtureEls.set(ch, btn.querySelector(".fixture"));
+      const img = btn.querySelector("img");
+      if (img) {
+        img.addEventListener("error", () => {
+          img.removeAttribute("src");
+          img.classList.add("poster-missing");
+        });
+      }
+      btn.addEventListener("click", () => playFromCard(btn, ch));
+      btn.addEventListener("keydown", (e) => {
+        if (e.keyCode === TvNav.KEY.ENTER) {
+          e.preventDefault();
+          playFromCard(btn, ch);
+        }
+      });
+      row.appendChild(btn);
+    }
+    return row;
   }
 
   function escapeHtml(s) {
@@ -196,6 +241,11 @@
 
   function handleBrowseBack(e) {
     if (!isBackEvent(e)) return false;
+    if (CategoryEditor.isOpen()) {
+      CategoryEditor.close();
+      e.preventDefault();
+      return true;
+    }
     const player = document.getElementById("player");
     if (player && !player.classList.contains("hidden")) {
       Player.hideScreen();
@@ -216,6 +266,10 @@
   }
 
   document.addEventListener("keydown", (e) => {
+    if (CategoryEditor.isOpen()) {
+      if (!CategoryEditor.handleKeyDown(e)) handleBrowseBack(e);
+      return;
+    }
     const gear = document.getElementById("btn-settings");
     if (
       !SettingsPanel.isOpen() &&

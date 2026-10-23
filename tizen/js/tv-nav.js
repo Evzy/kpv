@@ -105,7 +105,8 @@ const TvNav = (() => {
     const player = document.getElementById("player");
     const settings = document.getElementById("settings");
     const settingsOpen = settings && !settings.classList.contains("hidden");
-    return (player && !player.classList.contains("hidden")) || settingsOpen;
+    const editorOpen = typeof CategoryEditor !== "undefined" && CategoryEditor.isOpen();
+    return (player && !player.classList.contains("hidden")) || settingsOpen || editorOpen;
   }
 
   function focusTopBarFromAnywhere() {

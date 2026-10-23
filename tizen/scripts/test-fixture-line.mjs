@@ -100,7 +100,7 @@ assert.equal(LiveScores.leaguePath("Darts"), "");
   vm.createContext(cat);
   vm.runInContext(
     `const Site = { noteEmbedFromUrl() {} };\n${src("stream-live.js")}\n${src("catalog.js")}\n` +
-      "globalThis.Catalog = Catalog; globalThis.StreamLive = StreamLive;",
+      "globalThis.Catalog = Catalog;",
     cat,
   );
   const [first] = cat.Catalog.parse({
@@ -112,17 +112,6 @@ assert.equal(LiveScores.leaguePath("Darts"), "");
       },
     ],
   });
-  const order = cat.StreamLive.sortChannelsLiveFirst([
-    { title: "MLS later", tag: "MLS", isLive: false },
-    { title: "LaLiga live", tag: "LaLiga", isLive: true },
-    { title: "EPL later", tag: "Premier League", isLive: false },
-    { title: "EPL live", tag: "Premier League", isLive: true },
-  ]);
-  assert.deepEqual(
-    Array.from(order, (c) => c.title),
-    ["EPL live", "EPL later", "LaLiga live", "MLS later"],
-    "Premier League first, live first within each group",
-  );
   const ch = first.channels[0];
   assert.equal(ch.startsAt, 100);
   assert.equal(ch.endsAt, 200);

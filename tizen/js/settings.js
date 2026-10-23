@@ -1,4 +1,4 @@
-/* global document, Site, TvNav, TvKeys */
+/* global document, Site, TvNav, TvKeys, CategoryEditor */
 const SettingsPanel = (() => {
   let panel;
   let browse;
@@ -7,6 +7,8 @@ const SettingsPanel = (() => {
   let btnCancel;
   let btnTestPlay;
   let btnCheckUpdate;
+  let btnCategories = null;
+  let onCustomize = () => {};
   let checkingUpdate = false;
   let hint;
   let siteUrlCurrent;
@@ -136,7 +138,7 @@ const SettingsPanel = (() => {
   }
 
   function focusables() {
-    return [input, btnSave, btnCancel, btnTestPlay, btnCheckUpdate].filter(Boolean);
+    return [input, btnSave, btnCancel, btnCategories, btnTestPlay, btnCheckUpdate].filter(Boolean);
   }
 
   function updateSiteUrlDisplay() {
@@ -147,7 +149,9 @@ const SettingsPanel = (() => {
 
   function rowWrap(el) {
     if (!el) return null;
-    if (el === btnSave || el === btnCancel || el === btnTestPlay || el === btnCheckUpdate) return el;
+    if (el === btnSave || el === btnCancel || el === btnTestPlay || el === btnCheckUpdate || el === btnCategories) {
+      return el;
+    }
     return el.closest(".field") || el;
   }
 
@@ -174,6 +178,8 @@ const SettingsPanel = (() => {
       msg = "OK — test stream (optional).";
     } else if (cur === btnCheckUpdate) {
       msg = "OK — check GitHub for a newer KPV and install it.";
+    } else if (cur === btnCategories) {
+      msg = "OK — reorder sports and leagues, or hide them.";
     } else if (cur === input) {
       msg = "OK — open keyboard and type your site (e.g. https://example.com). Back closes keyboard.";
     }
@@ -242,6 +248,11 @@ const SettingsPanel = (() => {
       });
   }
 
+  function openCustomize() {
+    close();
+    onCustomize();
+  }
+
   function activateRow() {
     const list = focusables();
     const cur = list[rowIndex];
@@ -260,6 +271,10 @@ const SettingsPanel = (() => {
     }
     if (cur === btnCheckUpdate) {
       checkForUpdates();
+      return;
+    }
+    if (cur === btnCategories) {
+      openCustomize();
       return;
     }
     if (cur === input) {
@@ -387,6 +402,7 @@ const SettingsPanel = (() => {
 
   function init(options) {
     onSaved = options.onSaved || onSaved;
+    onCustomize = options.onCustomize || onCustomize;
     panel = document.getElementById("settings");
     browse = document.getElementById("browse");
     input = document.getElementById("site-url");
@@ -406,6 +422,10 @@ const SettingsPanel = (() => {
     btnCancel.addEventListener("click", close);
     if (btnTestPlay) btnTestPlay.addEventListener("click", openTestPlayback);
     if (btnCheckUpdate) btnCheckUpdate.addEventListener("click", checkForUpdates);
+    if (typeof CategoryEditor !== "undefined") {
+      btnCategories = CategoryEditor.mountSettingsButton(panel);
+      if (btnCategories) btnCategories.addEventListener("click", openCustomize);
+    }
 
     lockTextFields();
     for (const el of textFields()) {

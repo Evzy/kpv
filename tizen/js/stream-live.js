@@ -11,19 +11,14 @@ const StreamLive = (() => {
     return false;
   }
 
-  const PINNED_TAGS = ["premier league"];
-
-  function isPinned(ch) {
-    return PINNED_TAGS.indexOf(String(ch.tag || "").trim().toLowerCase()) >= 0;
-  }
-
-  /** Pinned leagues lead their category; live channels lead within each group. */
   function sortChannelsLiveFirst(channels) {
-    const groups = [[], [], [], []];
+    const live = [];
+    const rest = [];
     for (const ch of channels) {
-      groups[(isPinned(ch) ? 0 : 2) + (ch.isLive ? 0 : 1)].push(ch);
+      if (ch.isLive) live.push(ch);
+      else rest.push(ch);
     }
-    return groups[0].concat(groups[1], groups[2], groups[3]);
+    return live.concat(rest);
   }
 
   function sortCategoriesLiveFirst(categories) {

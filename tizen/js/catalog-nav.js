@@ -7,21 +7,19 @@ const CatalogNav = (() => {
     return document.getElementById("catalog");
   }
 
-  function sections() {
+  function isHead(el) {
+    return el.classList.contains("category-head") || el.classList.contains("league-head");
+  }
+
+  /** Sport headings, league headings and card rows in screen order, skipping collapsed content. */
+  function stops() {
     const root = catalogRoot();
-    return root ? [...root.querySelectorAll(".category")] : [];
+    if (!root) return [];
+    return [...root.querySelectorAll(".category-head, .league-head, .row")].filter((el) => el.offsetParent !== null);
   }
 
-  function isCollapsed(section) {
-    return section.classList.contains("category--collapsed");
-  }
-
-  function headOf(section) {
-    return section.querySelector(".category-head");
-  }
-
-  function cardsOf(section) {
-    return [...section.querySelectorAll(".row .card")];
+  function cardsOf(row) {
+    return [...row.querySelectorAll(".card")];
   }
 
   function loadCollapsed() {
@@ -56,7 +54,7 @@ const CatalogNav = (() => {
   function markFocus(el) {
     const root = catalogRoot();
     if (!root) return;
-    for (const node of root.querySelectorAll(".card--active, .category-head.is-focused")) {
+    for (const node of root.querySelectorAll(".card--active, .is-focused")) {
       node.classList.remove("card--active", "is-focused");
     }
     if (!el) return;
@@ -65,8 +63,8 @@ const CatalogNav = (() => {
   }
 
   function rememberColumn(card) {
-    const section = card.closest(".category");
-    if (section) section.dataset.lastIdx = String(cardsOf(section).indexOf(card));
+    const row = card.closest(".row");
+    if (row) row.dataset.lastIdx = String(cardsOf(row).indexOf(card));
   }
 
   function focusCard(card) {
@@ -75,10 +73,8 @@ const CatalogNav = (() => {
     markFocus(card);
     rememberColumn(card);
     scrollRowToCard(card);
-    const section = card.closest(".category");
-    if (section) {
-      section.scrollIntoView({ block: "nearest", behavior: "auto" });
-    }
+    const block = card.closest(".league") || card.closest(".category");
+    if (block) block.scrollIntoView({ block: "nearest", behavior: "auto" });
   }
 
   function focusHead(head) {
@@ -88,75 +84,71 @@ const CatalogNav = (() => {
     head.scrollIntoView({ block: "nearest", behavior: "auto" });
   }
 
-  /** Enter a category's row at the column last used there. */
-  function focusSectionRow(section) {
-    const cards = cardsOf(section);
-    if (!cards.length) return false;
-    const idx = Math.min(Number(section.dataset.lastIdx) || 0, cards.length - 1);
-    focusCard(cards[idx]);
-    return true;
+  /** Enter a row at the column last used there. */
+  function focusRow(row) {
+    const cards = cardsOf(row);
+    if (!cards.length) return;
+    focusCard(cards[Math.min(Number(row.dataset.lastIdx) || 0, cards.length - 1)]);
+  }
+
+  function focusStop(stop) {
+    if (isHead(stop)) focusHead(stop);
+    else focusRow(stop);
   }
 
   function focusFirst() {
-    const all = sections();
-    const open = all.find((s) => !isCollapsed(s) && cardsOf(s).length);
-    if (open && all.indexOf(open) === 0) {
-      focusSectionRow(open);
-    } else if (all.length) {
-      focusHead(headOf(all[0]));
-    }
+    const all = stops();
+    const firstRow = all.filter((s) => !isHead(s))[0];
+    if (firstRow && all.indexOf(firstRow) === 1) focusRow(firstRow);
+    else if (all.length) focusHead(all[0]);
   }
 
-  function toggleSection(section, name) {
+  function step(from, dir, e) {
+    const all = stops();
+    const next = all[all.indexOf(from) + dir];
+    if (next) focusStop(next);
+    else if (dir < 0) TvNav.focusRefresh();
+    e.preventDefault();
+    return true;
+  }
+
+  function toggle(container, key, collapsedClass, headSelector) {
     const collapsed = loadCollapsed();
-    const nowCollapsed = !isCollapsed(section);
-    section.classList.toggle("category--collapsed", nowCollapsed);
-    if (nowCollapsed) collapsed.add(name);
-    else collapsed.delete(name);
+    const nowCollapsed = !container.classList.contains(collapsedClass);
+    container.classList.toggle(collapsedClass, nowCollapsed);
+    if (nowCollapsed) collapsed.add(key);
+    else collapsed.delete(key);
     saveCollapsed(collapsed);
-    const head = headOf(section);
+    const head = container.querySelector(headSelector);
     if (head) {
       head.setAttribute("aria-expanded", nowCollapsed ? "false" : "true");
       focusHead(head);
     }
   }
 
+  function toggleSection(section, name) {
+    toggle(section, name, "category--collapsed", ".category-head");
+  }
+
+  function toggleLeague(block, key) {
+    toggle(block, key, "league--collapsed", ".league-head");
+  }
+
   function handleHeadKey(head, code, e) {
-    const all = sections();
-    const section = head.closest(".category");
-    const si = all.indexOf(section);
     if (code === TvNav.KEY.LEFT || code === TvNav.KEY.RIGHT) {
       e.preventDefault();
       return true;
     }
-    if (code === TvNav.KEY.DOWN) {
-      if (!isCollapsed(section) && focusSectionRow(section)) {
-        e.preventDefault();
-        return true;
-      }
-      if (si >= 0 && si < all.length - 1) focusHead(headOf(all[si + 1]));
-      e.preventDefault();
-      return true;
-    }
-    if (code === TvNav.KEY.UP) {
-      if (si > 0) {
-        const prev = all[si - 1];
-        if (isCollapsed(prev) || !focusSectionRow(prev)) focusHead(headOf(prev));
-      } else {
-        TvNav.focusRefresh();
-      }
-      e.preventDefault();
-      return true;
-    }
+    if (code === TvNav.KEY.DOWN) return step(head, 1, e);
+    if (code === TvNav.KEY.UP) return step(head, -1, e);
     return false;
   }
 
   function handleCardKey(card, code, e) {
-    const section = card.closest(".category");
-    const cards = section ? cardsOf(section) : [];
+    const row = card.closest(".row");
+    const cards = row ? cardsOf(row) : [];
     const idx = cards.indexOf(card);
     if (idx < 0) return false;
-
     if (code === TvNav.KEY.LEFT && idx > 0) {
       focusCard(cards[idx - 1]);
       e.preventDefault();
@@ -167,27 +159,15 @@ const CatalogNav = (() => {
       e.preventDefault();
       return true;
     }
-    if (code === TvNav.KEY.UP) {
-      focusHead(headOf(section));
-      e.preventDefault();
-      return true;
-    }
-    if (code === TvNav.KEY.DOWN) {
-      const all = sections();
-      const si = all.indexOf(section);
-      if (si >= 0 && si < all.length - 1) {
-        focusHead(headOf(all[si + 1]));
-        e.preventDefault();
-        return true;
-      }
-    }
+    if (code === TvNav.KEY.UP) return step(row, -1, e);
+    if (code === TvNav.KEY.DOWN) return step(row, 1, e);
     return false;
   }
 
   function handleKeyDown(e) {
     const active = document.activeElement;
-    if (!active) return false;
-    if (active.classList.contains("category-head")) return handleHeadKey(active, e.keyCode, e);
+    if (!active || !active.classList) return false;
+    if (isHead(active)) return handleHeadKey(active, e.keyCode, e);
     if (active.classList.contains("card")) return handleCardKey(active, e.keyCode, e);
     return false;
   }
@@ -196,7 +176,7 @@ const CatalogNav = (() => {
     const root = catalogRoot();
     if (!root) return;
     root.addEventListener("focusin", (ev) => {
-      const el = ev.target.closest(".card, .category-head");
+      const el = ev.target.closest(".card, .category-head, .league-head");
       if (!el) return;
       markFocus(el);
       if (el.classList.contains("card")) {
@@ -206,5 +186,14 @@ const CatalogNav = (() => {
     });
   }
 
-  return { handleKeyDown, wire, focusCard, focusFirst, markFocus, toggleSection, loadCollapsed };
+  return {
+    handleKeyDown,
+    wire,
+    focusCard,
+    focusFirst,
+    markFocus,
+    toggleSection,
+    toggleLeague,
+    loadCollapsed,
+  };
 })();

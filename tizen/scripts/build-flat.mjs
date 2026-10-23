@@ -23,6 +23,8 @@ const jsOrder = [
   "fixture-line.js",
   "live-scores.js",
   "catalog.js",
+  "category-prefs.js",
+  "category-editor.js",
   "player.js",
   "tv-nav.js",
   "catalog-nav.js",
