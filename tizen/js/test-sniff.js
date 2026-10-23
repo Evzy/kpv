@@ -3,7 +3,7 @@
  * PC browser harness — same embed engine as TV sniff.html. Open via npm run test:sniff
  */
 (function testSniffHarness() {
-  const DEFAULT_EMBED = "https://embed.example.com/embed/sample-channel";
+  const DEFAULT_EMBED = "https://taifood-blog.asia/embed/247-cows";
   const logEl = document.getElementById("log");
   const statusEl = document.getElementById("status");
   const frame = document.getElementById("engine-frame");
@@ -71,7 +71,7 @@
 
     try {
       log("Fetching embed HTML…");
-      const { raw, html } = await EmbedEngine.fetchPreparedDocument(embedUrl, "https://example.com/");
+      const { raw, html } = await EmbedEngine.fetchPreparedDocument(embedUrl, "https://ppv.tj/");
       log(`Fetched ${raw.length} bytes → prepared ${html.length} bytes`);
       log(`Has bundle-jw: ${/bundle-jw/.test(html)} · hook: ${/kpvOnSniffed/.test(html)}`);
       const mode = EmbedEngine.mountInFrame(frame, html);

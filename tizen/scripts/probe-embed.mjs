@@ -1,5 +1,5 @@
-const base = "https://api.example.com";
-const uri = "sample-channel";
+const base = "https://api.ppv.tj";
+const uri = "247-cows";
 const paths = [
   `/api/streams/${uri}`,
   `/api/streams/${uri}/play`,
@@ -9,7 +9,7 @@ const paths = [
   `/api/play/${uri}`,
   `/api/embed/${uri}`,
 ];
-const headers = { Accept: "application/json", Referer: "https://example.com/" };
+const headers = { Accept: "application/json", Referer: "https://ppv.tj/" };
 for (const p of paths) {
   try {
     const res = await fetch(base + p, { headers });

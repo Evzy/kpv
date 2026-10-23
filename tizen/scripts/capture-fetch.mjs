@@ -1,6 +1,6 @@
 import puppeteer from "puppeteer";
 
-const embed = "https://embed.example.com/embed/sample-channel";
+const embed = "https://taifood-blog.asia/embed/247-cows";
 const browser = await puppeteer.launch({ headless: true });
 const page = await browser.newPage();
 const posts = [];

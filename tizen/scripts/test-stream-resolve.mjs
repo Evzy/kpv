@@ -5,7 +5,7 @@ const apiSample = {
   data: {
     m3u8: "",
     sources: [
-      { type: "iframe", default: true, data: "https://embed.example.com/embed/sample-channel" },
+      { type: "iframe", default: true, data: "https://taifood-blog.asia/embed/247-cows" },
       { type: "hls", data: "https://cdn.example/live/index.m3u8" },
     ],
   },
@@ -14,17 +14,17 @@ const apiSample = {
 assert.equal(pickHlsFromPayload(apiSample), "https://cdn.example/live/index.m3u8");
 assert.equal(
   pickEmbedFromPayload(apiSample),
-  "https://embed.example.com/embed/sample-channel",
+  "https://taifood-blog.asia/embed/247-cows",
 );
 
 const embedOnly = {
   data: {
     m3u8: "",
-    sources: [{ type: "iframe", data: "https://embed.example.com/embed/sample-channel" }],
+    sources: [{ type: "iframe", data: "https://taifood-blog.asia/embed/247-cows" }],
   },
 };
 assert.equal(pickHlsFromPayload(embedOnly), "");
-assert.equal(pickEmbedFromPayload(embedOnly), "https://embed.example.com/embed/sample-channel");
+assert.equal(pickEmbedFromPayload(embedOnly), "https://taifood-blog.asia/embed/247-cows");
 
 const topLevel = { data: { m3u8: "https://x.test/play.m3u8", sources: [] } };
 assert.equal(pickHlsFromPayload(topLevel), "https://x.test/play.m3u8");

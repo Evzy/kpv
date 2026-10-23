@@ -130,13 +130,13 @@ assert.deepEqual(res, { wrapped: obj });
 
 assert.equal(ex.viaLocal(obj), obj);
 
-assert.deepEqual(GasmResolve.parseEmbed("https://embed.example.com/embed/sample-channel-2"), {
-  origin: "https://embed.example.com",
-  host: "embed.example.com",
-  channel: "sample-channel-2",
+assert.deepEqual(GasmResolve.parseEmbed("https://taifood-blog.asia/embed/247-willow"), {
+  origin: "https://taifood-blog.asia",
+  host: "taifood-blog.asia",
+  channel: "247-willow",
 });
 assert.equal(GasmResolve.parseEmbed("https://x.test/embed/a/b?x=1").channel, "a/b");
-assert.equal(GasmResolve.parseEmbed("https://x.test/live/sample-channel-2"), null);
+assert.equal(GasmResolve.parseEmbed("https://x.test/live/247-willow"), null);
 assert.equal(GasmResolve.canResolve("not a url"), false);
 
 console.log("test-wasm-lower: PASS");

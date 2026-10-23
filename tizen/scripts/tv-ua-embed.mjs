@@ -1,9 +1,9 @@
 const TV_UA =
   "Mozilla/5.0 (SMART-TV; Linux; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0 Chrome/108.0.5359.1 TV Safari/537.36";
-const url = "https://embed.example.com/embed/sample-channel";
+const url = "https://taifood-blog.asia/embed/247-cows";
 for (const ua of [TV_UA, "Mozilla/5.0 (Windows NT 10.0) Chrome/120.0.0.0"]) {
   const res = await fetch(url, {
-    headers: { Referer: "https://example.com/", "User-Agent": ua },
+    headers: { Referer: "https://ppv.tj/", "User-Agent": ua },
   });
   const html = await res.text();
   console.log("\nUA", ua.slice(0, 40), "...", res.status, html.length);

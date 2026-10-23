@@ -1,5 +1,5 @@
-const res = await fetch("https://embed.example.com/embed/sample-channel", {
-  headers: { Referer: "https://example.com/" },
+const res = await fetch("https://taifood-blog.asia/embed/247-cows", {
+  headers: { Referer: "https://ppv.tj/" },
 });
 const html = await res.text();
 const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);

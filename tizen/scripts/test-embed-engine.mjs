@@ -2,7 +2,7 @@
  * Node smoke test (no browser): fetch embed, run same transforms as embed-engine.js
  * Usage: node scripts/test-embed-engine.mjs [embedUrl]
  */
-const embedUrl = process.argv[2] || "https://embed.example.com/embed/sample-channel";
+const embedUrl = process.argv[2] || "https://taifood-blog.asia/embed/247-cows";
 
 function embedOrigin(url) {
   return new URL(url).origin;
@@ -33,7 +33,7 @@ function prepareHtml(rawHtml, url) {
 }
 
 const res = await fetch(embedUrl, {
-  headers: { Accept: "text/html", Referer: "https://example.com/" },
+  headers: { Accept: "text/html", Referer: "https://ppv.tj/" },
 });
 console.log("HTTP", res.status, embedUrl);
 if (!res.ok) process.exit(1);
@@ -43,7 +43,7 @@ const checks = {
   rawBytes: raw.length,
   preparedBytes: html.length,
   hasBundleJw: /bundle-jw/.test(html),
-  hasBase: /<base href="https:\/\/embed.example.com\//.test(html),
+  hasBase: /<base href="https:\/\/taifood-blog.asia\//.test(html),
   hostRewrite: !html.includes('location.protocol+"//"+location.host'),
   strippedAdblock: !/aclib\.runPop/.test(html),
   stillHasZpQw: /ZpQw9XkLmN8c3vR3/.test(html),

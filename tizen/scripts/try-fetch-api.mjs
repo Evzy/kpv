@@ -1,7 +1,7 @@
-const embedUrl = "https://embed.example.com/embed/sample-channel";
-const referer = "https://embed.example.com/embed/sample-channel";
+const embedUrl = "https://taifood-blog.asia/embed/247-cows";
+const referer = "https://taifood-blog.asia/embed/247-cows";
 
-const page = await fetch(embedUrl, { headers: { Referer: "https://example.com/" } });
+const page = await fetch(embedUrl, { headers: { Referer: "https://ppv.tj/" } });
 const html = await page.text();
 const m = html.match(/window\['ZpQw9XkLmN8c3vR3'\]='([^']+)'/);
 const blob = m ? m[1] : "";
@@ -12,15 +12,15 @@ const attempts = [
   { ct: "text/plain", body: blob },
   { ct: "application/json", body: JSON.stringify(blob) },
   { ct: "application/json", body: JSON.stringify({ data: blob }) },
-  { ct: "application/json", body: JSON.stringify({ path: "/embed/sample-channel" }) },
+  { ct: "application/json", body: JSON.stringify({ path: "/embed/247-cows" }) },
 ];
 
 for (const a of attempts) {
-  const res = await fetch("https://embed.example.com/fetch", {
+  const res = await fetch("https://taifood-blog.asia/fetch", {
     method: "POST",
     headers: {
       Referer: referer,
-      Origin: "https://embed.example.com",
+      Origin: "https://taifood-blog.asia",
       "Content-Type": a.ct,
       Accept: "*/*",
     },
