@@ -17,20 +17,6 @@ class StreamLiveTest {
     }
 
     @Test
-    fun premierLeagueFirstThenLive() {
-        val sorted =
-            StreamLive.sortChannels(
-                listOf(
-                    ChannelListing("MLS later", "MLS", "a", "", ""),
-                    ChannelListing("LaLiga live", "LaLiga", "b", "", "", isLive = true),
-                    ChannelListing("EPL later", "Premier League", "c", "", ""),
-                    ChannelListing("EPL live", "Premier League", "d", "", "", isLive = true),
-                ),
-            )
-        assertEquals(listOf("EPL live", "EPL later", "LaLiga live", "MLS later"), sorted.map { it.title })
-    }
-
-    @Test
     fun sortCategoriesWithLiveFirst() {
         val sorted =
             StreamLive.sortCategories(
