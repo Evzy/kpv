@@ -1,6 +1,8 @@
 package dev.kpv.app
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import com.google.android.gms.cast.MediaInfo
@@ -32,8 +34,10 @@ object CastController {
         override fun onSessionStarted(session: CastSession, sessionId: String) = Unit
         override fun onSessionStartFailed(session: CastSession, error: Int) = Unit
         override fun onSessionEnding(session: CastSession) = Unit
+        // The receiver can keep playing after the phone-side session drops (e.g. an output route
+        // change), so the relay outlives the session and is stopped by the idle watchdog instead.
         override fun onSessionEnded(session: CastSession, error: Int) {
-            releaseRelay(appContext)
+            Log.i(TAG, "Cast session ended error=$error; relay kept until the TV goes idle")
         }
         override fun onSessionResuming(session: CastSession, sessionId: String) = Unit
         override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) = Unit
@@ -80,6 +84,7 @@ object CastController {
         }
         activeToken?.let { CastRelayServer.removeToken(it) }
         activeToken = token
+        scheduleIdleCheck()
         val url = CastHlsRelay.masterRelayUrl(ip, CastRelayServer.listeningPort, token)
         val metadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_GENERIC).apply {
             putString(MediaMetadata.KEY_TITLE, title)
@@ -109,6 +114,7 @@ object CastController {
     }
 
     fun releaseRelay(contextOverride: Context? = null) {
+        mainHandler.removeCallbacks(idleCheck)
         activeToken?.let { CastRelayServer.removeToken(it) }
         activeToken = null
         val ctx = contextOverride ?: appContext
@@ -119,4 +125,32 @@ object CastController {
         releaseRelay(context.applicationContext)
         CastRelayServer.stop()
     }
+
+    /** Leaves an in-use relay running when the activity goes away; the idle watchdog stops it later. */
+    fun onHostDestroyed(context: Context) {
+        if (activeToken == null) shutdown(context)
+    }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private val idleCheck = object : Runnable {
+        override fun run() {
+            if (activeToken == null) return
+            val idleMs = System.currentTimeMillis() - CastRelayServer.lastRequestAtMs
+            if (idleMs >= RELAY_IDLE_TIMEOUT_MS) {
+                Log.i(TAG, "TV idle for ${idleMs / 1000}s; stopping cast relay")
+                appContext?.let { shutdown(it) } ?: releaseRelay()
+            } else {
+                mainHandler.postDelayed(this, IDLE_CHECK_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun scheduleIdleCheck() {
+        mainHandler.removeCallbacks(idleCheck)
+        mainHandler.postDelayed(idleCheck, IDLE_CHECK_INTERVAL_MS)
+    }
+
+    private const val RELAY_IDLE_TIMEOUT_MS = 90_000L
+    private const val IDLE_CHECK_INTERVAL_MS = 15_000L
 }

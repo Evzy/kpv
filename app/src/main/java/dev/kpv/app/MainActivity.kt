@@ -414,7 +414,7 @@ class MainActivity : AppCompatActivity() {
         catalogLoader?.cancel()
         resolver?.cancel()
         if (isFinishing) {
-            CastController.shutdown(applicationContext)
+            CastController.onHostDestroyed(applicationContext)
         }
         super.onDestroy()
     }

@@ -85,6 +85,7 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
     }
 
     override fun serve(session: IHTTPSession): Response {
+        lastRequestAtMs = System.currentTimeMillis()
         // The Cast receiver page (gstatic.com) fetches media cross-origin, so every response needs CORS.
         val response = if (session.method == Method.OPTIONS) {
             newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "")
@@ -492,6 +493,10 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
         val listeningPort: Int
             get() = instance?.listeningPort ?: DEFAULT_PORT
 
+        @Volatile
+        var lastRequestAtMs: Long = 0L
+            private set
+
         @Synchronized
         fun ensureStarted(): CastRelayServer? {
             instance?.let { return it }
@@ -516,6 +521,7 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
 
         fun register(stream: ResolvedStream): String? {
             val server = ensureStarted() ?: return null
+            lastRequestAtMs = System.currentTimeMillis()
             return server.register(stream)
         }
 

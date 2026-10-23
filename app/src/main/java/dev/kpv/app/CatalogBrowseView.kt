@@ -15,10 +15,18 @@ class CatalogBrowseView(
 ) : RecyclerView(context) {
 
     private val television = TvHelper.isTelevision(context)
-    private val cardWidthPx = dp(if (television) 200 else 176)
-    private val posterHeightPx = dp(if (television) 112 else 99)
-    private val cardHeightPx = posterHeightPx + dp(68)
+    private val horizontalPaddingPx = dp(if (television) 48 else 16)
     private val cardGapPx = dp(10)
+    private val span = gridColumns()
+
+    // TV cards fill their grid column; a fixed width overflows the column and covers the live dot.
+    private val cardWidthPx = if (television) {
+        (resources.displayMetrics.widthPixels - 2 * horizontalPaddingPx) / span - cardGapPx
+    } else {
+        dp(176)
+    }
+    private val posterHeightPx = if (television) cardWidthPx * 9 / 16 else dp(99)
+    private val cardHeightPx = if (television) ViewGroup.LayoutParams.WRAP_CONTENT else posterHeightPx + dp(68)
 
     private val browseAdapter = CatalogBrowseAdapter(
         television = television,
@@ -31,7 +39,7 @@ class CatalogBrowseView(
 
     init {
         setBackgroundColor(ContextCompat.getColor(context, R.color.kpv_bg))
-        setPadding(dp(if (television) 48 else 16), dp(if (television) 16 else 8), dp(if (television) 48 else 16), dp(16))
+        setPadding(horizontalPaddingPx, dp(if (television) 16 else 8), horizontalPaddingPx, dp(16))
         clipToPadding = false
         setHasFixedSize(true)
         itemAnimator = null
@@ -48,7 +56,6 @@ class CatalogBrowseView(
         })
 
         if (television) {
-            val span = gridColumns()
             layoutManager = GridLayoutManager(context, span).apply {
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                     override fun getSpanSize(position: Int): Int =
