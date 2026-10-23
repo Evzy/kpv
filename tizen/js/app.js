@@ -1,4 +1,4 @@
-/* global Site, Catalog, Player, TvNav, SettingsPanel, CatalogNav, KPV_APP_VERSION */
+/* global Site, Catalog, Player, TvNav, SettingsPanel, CatalogNav, FixtureLine, LiveScores, KPV_APP_VERSION */
 (function init() {
   const verEl = document.getElementById("app-version");
   if (verEl && typeof KPV_APP_VERSION === "string" && KPV_APP_VERSION) {
@@ -16,6 +16,7 @@
       "button.card{color:#e5e7eb!important;margin-right:12px!important;-webkit-appearance:none}" +
       "button.card .title{color:#e5e7eb!important}" +
       "button.card .tag{color:#9ca3af!important}" +
+      "button.card .fixture{color:#5eead4!important}" +
       ".row .card:last-child{margin-right:0!important}" +
       ".category h2{color:#e5e7eb!important}";
     document.head.appendChild(fix);
@@ -66,6 +67,8 @@
     catalogEl.classList.remove("hidden");
     catalogEl.innerHTML = "";
     const collapsed = CatalogNav.loadCollapsed();
+    const nowSec = Math.floor(Date.now() / 1000);
+    const fixtureEls = new Map();
     for (const cat of categories) {
       const section = document.createElement("section");
       section.className = "category";
@@ -96,7 +99,9 @@
             <span class="card-tile-spinner" aria-hidden="true"></span>
           </span>
           <div class="title">${escapeHtml(ch.title)}</div>
+          <div class="fixture">${escapeHtml(FixtureLine.timeLine(ch, nowSec) || "")}</div>
           <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
+        fixtureEls.set(ch, btn.querySelector(".fixture"));
         const img = btn.querySelector("img");
         if (img) {
           img.addEventListener("error", () => {
@@ -117,6 +122,11 @@
       catalogEl.appendChild(section);
     }
     CatalogNav.focusFirst();
+    LiveScores.lookup([...fixtureEls.keys()], nowSec).then((lines) => {
+      lines.forEach((text, ch) => {
+        fixtureEls.get(ch).textContent = text;
+      });
+    });
     if (typeof RemoteGuide !== "undefined") {
       RemoteGuide.say("↑ top bar (Refresh / Settings) · OK on a category to hide/show · OK on a channel to play");
     }

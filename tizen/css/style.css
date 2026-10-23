@@ -252,7 +252,7 @@ body.settings-open .remote-guide {
 .card {
   flex: 0 0 176px;
   width: 176px;
-  height: 184px;
+  height: 204px;
   padding: 6px;
   margin: 0 12px 0 0;
   border-radius: 10px;
@@ -369,6 +369,17 @@ button.card .tag {
 
 button.card .tag {
   color: #9ca3af;
+}
+
+.card .fixture {
+  margin-top: 2px;
+  height: 18px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5eead4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card .tag {

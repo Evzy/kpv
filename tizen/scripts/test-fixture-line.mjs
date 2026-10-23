@@ -95,4 +95,32 @@ assert.equal(LiveScores.leaguePath("Darts"), "");
   );
 }
 
+{
+  const cat = { console };
+  vm.createContext(cat);
+  vm.runInContext(
+    `const Site = { noteEmbedFromUrl() {} };\n${src("stream-live.js")}\n${src("catalog.js")}\n` +
+      "globalThis.Catalog = Catalog;",
+    cat,
+  );
+  const [first] = cat.Catalog.parse({
+    timestamp: NOW,
+    streams: [
+      {
+        category: "Ice Hockey",
+        streams: [{ uri_name: "a", name: "A vs. B", tag: "NHL", starts_at: 100, ends_at: 200, always_live: 0 }],
+      },
+    ],
+  });
+  const ch = first.channels[0];
+  assert.equal(ch.startsAt, 100);
+  assert.equal(ch.endsAt, 200);
+  assert.equal(ch.alwaysLive, false);
+}
+
+{
+  const order = readFileSync(path.join(here, "build-flat.mjs"), "utf8");
+  assert.match(order, /"stream-live\.js",\s*"fixture-line\.js",\s*"live-scores\.js",/, "main.js bundles both");
+}
+
 console.log("test-fixture-line: PASS");

@@ -20,6 +20,8 @@ const jsOrder = [
   "playback-cache.js",
   "stream-resolve.js",
   "stream-live.js",
+  "fixture-line.js",
+  "live-scores.js",
   "catalog.js",
   "player.js",
   "tv-nav.js",

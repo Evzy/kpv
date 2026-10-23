@@ -40,6 +40,9 @@ const Catalog = (() => {
           hlsUrl: hls.startsWith("http") ? hls : "",
           referer: (s.referer || "").trim(),
           isLive: StreamLive.isStreamLive(s, nowSec),
+          startsAt: Number(s.starts_at) || 0,
+          endsAt: Number(s.ends_at) || 0,
+          alwaysLive: s.always_live === 1 || s.always_live === true,
         });
       }
       if (channels.length) {
