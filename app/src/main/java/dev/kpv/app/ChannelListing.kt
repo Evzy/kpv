@@ -11,4 +11,8 @@ data class ChannelListing(
     val playerIframeUrl: String = "",
     /** On-air now (catalog-style schedule or always_live). */
     val isLive: Boolean = false,
+    /** Unix seconds from the catalog API; 0 when the source has no schedule. */
+    val startsAt: Long = 0L,
+    val endsAt: Long = 0L,
+    val alwaysLive: Boolean = false,
 )
