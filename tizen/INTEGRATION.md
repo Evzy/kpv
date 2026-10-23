@@ -29,7 +29,7 @@ flowchart LR
 | **2. Relay** | Phone proxy when TV/Cast cannot send Referer | **Android:** not needed for ExoPlayer (same headers). **Tizen:** AVPlay tries Referer; **403** may need relay ❌ |
 | **3. Playback** | Tizen **WVC Receiver** or Cast LOAD | **Tizen:** AVPlay in KPV. **Android:** ExoPlayer ✅ |
 
-example.com fails on **Tizen layer 1 inside the widget** (JW + WASM in blob iframe). WVC succeeds because **layer 1 runs on the phone**, not on the TV.
+Embed-first sites fail on **Tizen layer 1 inside the widget** (JW + WASM in blob iframe). WVC succeeds because **layer 1 runs on the phone**, not on the TV.
 
 ---
 
@@ -49,7 +49,7 @@ example.com fails on **Tizen layer 1 inside the widget** (JW + WASM in blob ifra
 
 | Project | Use for KPV |
 |---------|-------------|
-| **[Streamlink](https://github.com/streamlink/streamlink)** | **Site-specific plugins** (iframe → regex/API → `.m3u8`). **Won’t run JW/WASM** on catalog embed without a dedicated plugin + often still needs browser cookies. Good for **LAN resolver service**: `streamlink embed-url best -O url` |
+| **[Streamlink](https://github.com/streamlink/streamlink)** | **Site-specific plugins** (iframe → regex/API → `.m3u8`). **Won’t run JW/WASM** on these embeds without a dedicated plugin + often still needs browser cookies. Good for **LAN resolver service**: `streamlink embed-url best -O url` |
 | **KPV `StreamResolver.kt`** | Already the Android discovery layer — **keep as canonical** |
 
 ### Samsung Tizen **playback only** (direct `.m3u8` URL already known)
@@ -62,7 +62,7 @@ example.com fails on **Tizen layer 1 inside the widget** (JW + WASM in blob ifra
 | **[Samsung SampleWebApps-PlayerAvplay](https://github.com/SamsungDForum/SampleWebApps-PlayerAvplay)** | AVPlay API sample |
 | **[JuvoPlayer](https://github.com/SamsungDForum/JuvoPlayer)** | Full MIT player (heavy) |
 
-**None of these solve catalog embed discovery on TV** — they assume you already have a playlist URL.
+**None of these solve embed discovery on TV** — they assume you already have a playlist URL.
 
 ### Launchers (not sniffers)
 
@@ -85,15 +85,15 @@ example.com fails on **Tizen layer 1 inside the widget** (JW + WASM in blob ifra
 
 ### Option B — **LAN resolver** (Castor / Streamlink / custom)
 
-1. Small service on PC/NAS (could wrap **Castor `api-server`** or a **Streamlink plugin** for catalog/embed-site):
-   - `GET /resolve?uri=sample-channel` → `{ m3u8, referer, expires }`
+1. Small service on PC/NAS (could wrap **Castor `api-server`** or a **Streamlink plugin** for your site):
+   - `GET /resolve?uri=<channel>` → `{ m3u8, referer, expires }`
 2. **Tizen KPV** calls your LAN URL, then AVPlay.
 
-**Reuse:** Streamlink plugin pattern ([mangomolo example](https://github.com/streamlink/streamlink/blob/master/src/streamlink/plugins/mangomolo.py): iframe → page → regex `.m3u8`). catalog needs a **custom plugin** (embed URL from API → fetch embed-site → may still need **headless Chrome** like Castor, not plain HTTP).
+**Reuse:** Streamlink plugin pattern ([mangomolo example](https://github.com/streamlink/streamlink/blob/master/src/streamlink/plugins/mangomolo.py): iframe → page → regex `.m3u8`). The site needs a **custom plugin** (embed URL from API → fetch embed page → may still need **headless Chrome** like Castor, not plain HTTP).
 
 ### Option C — **Header relay on phone** (origin-caster / Watchbox)
 
-When AVPlay gets **403** on `cdn.example.com`:
+When AVPlay gets **403** from the stream CDN:
 
 1. Phone runs **HTTP proxy** (relay segment requests with Referer).
 2. TV AVPlay opens `http://phone-ip:8888/proxy/...` instead of CDN URL.
@@ -102,7 +102,7 @@ When AVPlay gets **403** on `cdn.example.com`:
 
 ### Option D — **Site API** (best for one app on many TVs)
 
-Add **`m3u8`** (or short-lived URL) to `/api/streams/{uri}` on catalog.
+Add **`m3u8`** (or short-lived URL) to `/api/streams/{uri}` on the site.
 
 **Reuse:** nothing — KPV already prefers API HLS + AVPlay.
 
@@ -127,6 +127,6 @@ Same logic as Android but **without** `shouldInterceptRequest` — blob iframe +
 1. **Short term:** Document WVC as external layer; fix + **PC test** for Tizen sniff (1.0.19+).
 2. **Medium:** **Companion mode** Android → Tizen (small LAN API, reuse `StreamResolver`).
 3. **Medium:** Optional **LAN resolver** command (Node or Castor) for power users.
-4. **Long term:** catalog **API `m3u8`** for native TV apps.
+4. **Long term:** site **API `m3u8`** for native TV apps.
 
 See also [ALTERNATIVES.md](./ALTERNATIVES.md) for product-level choices.

@@ -1,6 +1,6 @@
 # How KPV (and similar apps) play these streams
 
-Sites using the **catalog-style API** (`/api/streams`, `/api/streams/{uri}`) almost never give you a plain file URL that works everywhere. They give you:
+Sites using this **catalog API** (`/api/streams`, `/api/streams/{uri}`) almost never give you a plain file URL that works everywhere. They give you:
 
 | API field | Meaning |
 |-----------|---------|
@@ -36,7 +36,7 @@ Same stack as [sky-iptv-tizen](https://github.com/sanwhere/sky-iptv-tizen) / [TV
 2. **`AvplayPlay`** (Samsung `webapis.avplay`) with Referer / live / adaptive props.
 3. **`hls-shell.html`** — bundled **Hls.js** + `<video>` if AVPlay fails (Referer passed via `xhrSetup`).
 
-Embed-only channels (catalog-style empty API `m3u8`) **do not play by default** on Tizen. Options: site adds `m3u8` to the API, run a resolver on the LAN (future Android KPV endpoint), or set `localStorage kpv_use_embed_sniff=1` for experimental `sniff.html` (often fails on Tizen 6).
+Embed-only channels (empty API `m3u8`) **do not play by default** on Tizen. Options: site adds `m3u8` to the API, run a resolver on the LAN (future Android KPV endpoint), or set `localStorage kpv_use_embed_sniff=1` for experimental `sniff.html` (often fails on Tizen 6).
 
 **PC tests before sideload:** `npm run test:tizen`, `npm run test:play` → open `test-play.html` or Settings → **Test playback** (Mux test stream).
 
@@ -51,7 +51,7 @@ Embed-only channels (catalog-style empty API `m3u8`) **do not play by default** 
 
 KPV TV v1.0.20: **API / resolver `.m3u8` → AVPlay → hls-shell** only (no full-page embed fallback).
 
-## Will example.com / embed-site embed work on Samsung TV?
+## Will embed-only channels work on Samsung TV?
 
 **Maybe, but often no** without a site change.
 
@@ -73,7 +73,7 @@ npm run test:embed          # Node: fetch + HTML transforms only (~5s)
 npm run test:sniff          # Same + local server on :8766
 ```
 
-Open **http://127.0.0.1:8766/test-sniff.html**, click **Run test** (default: sample-channel embed).
+Open **http://127.0.0.1:8766/test-sniff.html**, click **Run test** (default: the test page's sample embed).
 
 Optional: Chrome DevTools → **Network conditions** → User agent → **Samsung TV** to mimic Tizen.
 

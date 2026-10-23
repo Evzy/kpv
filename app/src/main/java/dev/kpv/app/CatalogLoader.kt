@@ -42,7 +42,7 @@ class CatalogLoader(
                 }
             }
         }.start()
-        // If the API hangs, still try the homepage (catalog often works via scrape).
+        // If the API hangs, still try the homepage (some sites only work via scrape).
         handler.postDelayed(homepageKick, 10_000L)
         handler.postDelayed({ if (!finished) finish(null) }, 50_000L)
     }

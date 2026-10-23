@@ -1,6 +1,6 @@
 /* global window */
 /**
- * Fetch catalog-style embed HTML and prepare it for same-origin blob iframe (TV sniff).
+ * Fetch catalog-site embed HTML and prepare it for same-origin blob iframe (TV sniff).
  */
 const EmbedEngine = (() => {
   function embedOrigin(url) {

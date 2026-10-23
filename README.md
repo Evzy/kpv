@@ -1,6 +1,6 @@
 # KPV
 
-Android + Samsung Tizen player for IPTV-style catalogs (e.g. example.com).
+Android + Samsung Tizen player for IPTV-style catalogs.
 
 ## Source repo
 

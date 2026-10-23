@@ -1,4 +1,4 @@
-/** Same live rules as example.com catalog API (always_live + schedule window). */
+/** Same live rules as the catalog API (always_live + schedule window). */
 
 export function isStreamLive(stream, nowSec) {
   const now = Number(nowSec) || Math.floor(Date.now() / 1000);

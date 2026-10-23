@@ -2,7 +2,7 @@ package dev.kpv.app
 
 import org.json.JSONObject
 
-/** Live rules aligned with example.com `/api/streams` (`always_live`, `starts_at`, `ends_at`, `timestamp`). */
+/** Live rules aligned with the catalog `/api/streams` (`always_live`, `starts_at`, `ends_at`, `timestamp`). */
 object StreamLive {
 
     fun isLive(stream: JSONObject, nowSec: Long): Boolean {
