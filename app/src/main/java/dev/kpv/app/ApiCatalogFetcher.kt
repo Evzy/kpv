@@ -43,6 +43,9 @@ object ApiCatalogFetcher {
                     posterUrl = stream.optString("poster"),
                     playerIframeUrl = iframe,
                     isLive = StreamLive.isLive(stream, nowSec),
+                    startsAt = stream.optLong("starts_at", 0L),
+                    endsAt = stream.optLong("ends_at", 0L),
+                    alwaysLive = stream.optInt("always_live", 0) == 1 || stream.optBoolean("always_live", false),
                 )
             }
             if (channels.isNotEmpty()) categories += StreamCategory(name, channels)

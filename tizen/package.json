@@ -2,7 +2,7 @@
   "name": "kpv-tizen",
   "private": true,
   "type": "module",
-  "version": "1.0.52",
+  "version": "1.0.53",
   "description": "KPV catalog player for Samsung Tizen TV",
   "scripts": {
     "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-kpv-icon.ps1",
@@ -13,7 +13,7 @@
     "package:hello": "node ./scripts/package-kpv-tizen.mjs --hello",
     "test:embed": "node ./scripts/test-embed-engine.mjs",
     "test:resolve": "node ./scripts/test-stream-resolve.mjs",
-    "test:tizen": "node ./scripts/test-stream-resolve.mjs && node ./scripts/test-resolve-flow.mjs && node ./scripts/test-embed-engine.mjs && node ./scripts/test-stream-live.mjs && node ./scripts/test-bundle-cache-logic.mjs && node ./scripts/test-dom-ids.mjs && node ./scripts/test-wasm-lower.mjs && node ./scripts/test-package-files.mjs && node ./scripts/test-update-session.mjs && node ./scripts/test-fixture-line.mjs",
+    "test:tizen": "node ./scripts/test-stream-resolve.mjs && node ./scripts/test-resolve-flow.mjs && node ./scripts/test-embed-engine.mjs && node ./scripts/test-stream-live.mjs && node ./scripts/test-bundle-cache-logic.mjs && node ./scripts/test-dom-ids.mjs && node ./scripts/test-wasm-lower.mjs && node ./scripts/test-package-files.mjs && node ./scripts/test-update-session.mjs && node ./scripts/test-fixture-line.mjs && node ./scripts/test-boot-version.mjs",
     "test:sniff": "node ./scripts/test-embed-engine.mjs && npx --yes serve -l 8766 .",
     "test:play": "npx --yes serve -l 8767 ."
   },

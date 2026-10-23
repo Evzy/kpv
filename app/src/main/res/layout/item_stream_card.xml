@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:background="@drawable/stream_card_selector"
     android:focusable="true"
-    android:minHeight="184dp"
+    android:minHeight="202dp"
     android:orientation="vertical"
     android:padding="6dp">
 
@@ -61,6 +61,19 @@
         android:paddingTop="8dp"
         android:textColor="@color/kpv_text_primary"
         android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/fixture"
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:ellipsize="end"
+        android:gravity="center_vertical|start"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:paddingTop="2dp"
+        android:textColor="@color/kpv_accent"
+        android:textSize="12sp"
         android:textStyle="bold" />
 
     <TextView

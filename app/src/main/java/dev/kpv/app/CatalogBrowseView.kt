@@ -26,7 +26,7 @@ class CatalogBrowseView(
         dp(176)
     }
     private val posterHeightPx = if (television) cardWidthPx * 9 / 16 else dp(99)
-    private val cardHeightPx = if (television) ViewGroup.LayoutParams.WRAP_CONTENT else posterHeightPx + dp(68)
+    private val cardHeightPx = if (television) ViewGroup.LayoutParams.WRAP_CONTENT else posterHeightPx + dp(86)
 
     private val browseAdapter = CatalogBrowseAdapter(
         television = television,
@@ -90,6 +90,8 @@ class CatalogBrowseView(
         browseAdapter.submitItems(items)
         return items
     }
+
+    fun refreshFixtureLines() = StreamCardBinder.refreshFixtures(this)
 
     fun setLoadingStream(streamUri: String?) {
         browseAdapter.loadingStreamUri = streamUri

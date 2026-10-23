@@ -177,10 +177,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var catalogReady = false
+    private var shownCategories: List<StreamCategory> = emptyList()
 
     override fun onResume() {
         super.onResume()
         updateFlow.onResume()
+        if (catalogReady) refreshScores()
+    }
+
+    private fun refreshScores() {
+        val categories = shownCategories
+        if (categories.isEmpty()) return
+        Thread {
+            LiveScores.refresh(categories, System.currentTimeMillis() / 1000L)
+            runOnUiThread { if (!isFinishing) catalogView.refreshFixtureLines() }
+        }.start()
     }
 
     // On TV the grid's section headers aren't focusable, so D-pad up from the top row
@@ -270,6 +281,8 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 catalogView.setCategories(result)
+                shownCategories = result
+                refreshScores()
                 catalogView.visibility = android.view.View.VISIBLE
                 swipeRefresh.isRefreshing = false
                 status.visibility = android.view.View.GONE

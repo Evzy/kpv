@@ -22,6 +22,10 @@ object StreamCardBinder {
         loading: Boolean = false,
     ) {
         view.findViewById<TextView>(R.id.title).text = channel.title
+        view.findViewById<TextView>(R.id.fixture).apply {
+            tag = channel
+            text = LiveScores.lineFor(channel, nowSec()).orEmpty()
+        }
         view.findViewById<TextView>(R.id.tag).text = channel.tag.ifBlank { "Live" }
         view.findViewById<View>(R.id.live_indicator).visibility =
             if (channel.isLive) View.VISIBLE else View.GONE
@@ -47,4 +51,20 @@ object StreamCardBinder {
     fun clearPoster(view: View) {
         Glide.with(view).clear(view.findViewById<ImageView>(R.id.poster))
     }
+
+    /** Re-reads fixture lines on cards already on screen without rebinding (keeps D-pad focus). */
+    fun refreshFixtures(root: ViewGroup) {
+        val now = nowSec()
+        for (i in 0 until root.childCount) {
+            val child = root.getChildAt(i)
+            val channel = child.tag as? ChannelListing
+            if (child.id == R.id.fixture && child is TextView && channel != null) {
+                child.text = LiveScores.lineFor(channel, now).orEmpty()
+            } else if (child is ViewGroup) {
+                refreshFixtures(child)
+            }
+        }
+    }
+
+    private fun nowSec(): Long = System.currentTimeMillis() / 1000L
 }
