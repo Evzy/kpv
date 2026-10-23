@@ -8,6 +8,8 @@
     <string name="hint_site">https://…</string>
     <string name="save_and_reload">Save and reload</string>
     <string name="settings_site_required">Enter a site URL.</string>
+    <string name="category_collapse">Collapse %1$s</string>
+    <string name="category_expand">Expand %1$s</string>
     <string name="settings_app_title">App</string>
     <string name="settings_installed_version">Installed version: v%1$s</string>
     <string name="update_check">Check for updates</string>

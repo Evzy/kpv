@@ -35,7 +35,10 @@ class CatalogBrowseView(
         posterHeightPx = posterHeightPx,
         cardGapPx = cardGapPx,
         onChannelClick = onChannelClick,
+        onHeaderClick = ::toggleCategory,
     )
+
+    private var categories: List<StreamCategory> = emptyList()
 
     init {
         setBackgroundColor(ContextCompat.getColor(context, R.color.kpv_bg))
@@ -68,8 +71,24 @@ class CatalogBrowseView(
         }
     }
 
-    fun setItems(items: List<BrowseItem>) {
+    fun setCategories(categories: List<StreamCategory>) {
+        this.categories = categories
+        rebuild()
+    }
+
+    private fun toggleCategory(name: String) {
+        CollapsedCategories.toggle(context, name)
+        val items = rebuild()
+        val headerPos = items.indexOfFirst { it is BrowseItem.Header && it.title == name }
+        if (headerPos >= 0 && television) {
+            post { findViewHolderForAdapterPosition(headerPos)?.itemView?.requestFocus() }
+        }
+    }
+
+    private fun rebuild(): List<BrowseItem> {
+        val items = flattenForBrowse(categories, television, CollapsedCategories.load(context))
         browseAdapter.submitItems(items)
+        return items
     }
 
     fun setLoadingStream(streamUri: String?) {

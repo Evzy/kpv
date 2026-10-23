@@ -14,6 +14,7 @@ class CatalogBrowseAdapter(
     private val posterHeightPx: Int,
     private val cardGapPx: Int,
     private val onChannelClick: (ChannelListing) -> Unit,
+    private val onHeaderClick: (String) -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val rowPool = RecyclerView.RecycledViewPool()
@@ -62,7 +63,7 @@ class CatalogBrowseAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
-            is BrowseItem.Header -> (holder as HeaderHolder).bind(item.title)
+            is BrowseItem.Header -> (holder as HeaderHolder).bind(item, onHeaderClick)
             is BrowseItem.Row -> (holder as RowHolder).bind(item.channels, loadingStreamUri)
             is BrowseItem.Channel -> StreamCardBinder.bind(
                 holder.itemView,
@@ -81,8 +82,16 @@ class CatalogBrowseAdapter(
 
     class HeaderHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val title = view.findViewById<TextView>(R.id.title)
-        fun bind(text: String) {
-            title.text = text
+        private val chevron = view.findViewById<View>(R.id.chevron)
+
+        fun bind(header: BrowseItem.Header, onClick: (String) -> Unit) {
+            title.text = header.title
+            chevron.rotation = if (header.collapsed) 0f else 180f
+            itemView.contentDescription = itemView.context.getString(
+                if (header.collapsed) R.string.category_expand else R.string.category_collapse,
+                header.title,
+            )
+            itemView.setOnClickListener { onClick(header.title) }
         }
     }
 

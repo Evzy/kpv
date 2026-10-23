@@ -1,11 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/title"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:focusable="false"
-    android:paddingTop="20dp"
-    android:paddingBottom="12dp"
-    android:textColor="@color/kpv_text_primary"
-    android:textSize="22sp"
-    android:textStyle="bold" />
+    android:layout_marginTop="12dp"
+    android:layout_marginBottom="4dp"
+    android:background="@drawable/bg_browse_header"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="4dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="@color/kpv_text_primary"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:id="@+id/chevron"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_chevron_down" />
+</LinearLayout>

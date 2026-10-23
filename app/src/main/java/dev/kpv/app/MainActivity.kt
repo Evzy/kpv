@@ -267,18 +267,14 @@ class MainActivity : AppCompatActivity() {
                 return@CatalogLoader
             }
             catalogReady = true
-            // Build the browse list off the UI thread so the first frame stays smooth.
-            Thread {
-                val items = flattenForBrowse(result, TvHelper.isTelevision(this))
-                runOnUiThread {
-                    if (isFinishing) return@runOnUiThread
-                    catalogView.setItems(items)
-                    catalogView.visibility = android.view.View.VISIBLE
-                    swipeRefresh.isRefreshing = false
-                    status.visibility = android.view.View.GONE
-                    updateCastButtonVisibility()
-                }
-            }.start()
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                catalogView.setCategories(result)
+                catalogView.visibility = android.view.View.VISIBLE
+                swipeRefresh.isRefreshing = false
+                status.visibility = android.view.View.GONE
+                updateCastButtonVisibility()
+            }
         }.also { it.start() }
     }
 
