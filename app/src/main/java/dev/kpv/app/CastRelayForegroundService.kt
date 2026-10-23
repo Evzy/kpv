@@ -22,12 +22,16 @@ class CastRelayForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         ensureChannel()
-        val notification = buildNotification()
-        startForeground(NOTIFICATION_ID, notification)
+        startForeground(NOTIFICATION_ID, buildNotification(null))
         acquireLocks()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val title = intent?.getStringExtra(EXTRA_TITLE)
+        getSystemService(NotificationManager::class.java)
+            .notify(NOTIFICATION_ID, buildNotification(title))
+        return START_STICKY
+    }
 
     override fun onDestroy() {
         releaseLocks()
@@ -69,7 +73,7 @@ class CastRelayForegroundService : Service() {
         mgr.createNotificationChannel(channel)
     }
 
-    private fun buildNotification(): Notification {
+    private fun buildNotification(channelTitle: String?): Notification {
         val open = PendingIntent.getActivity(
             this,
             0,
@@ -77,7 +81,11 @@ class CastRelayForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.cast_relay_notification_title))
+            .setContentTitle(
+                channelTitle?.takeIf { it.isNotBlank() }
+                    ?.let { getString(R.string.cast_relay_notification_title_channel, it) }
+                    ?: getString(R.string.cast_relay_notification_title),
+            )
             .setContentText(getString(R.string.cast_relay_notification_text))
             .setSmallIcon(R.drawable.icon)
             .setContentIntent(open)
@@ -89,9 +97,11 @@ class CastRelayForegroundService : Service() {
     companion object {
         private const val CHANNEL_ID = "kpv_cast_relay"
         private const val NOTIFICATION_ID = 4107
+        private const val EXTRA_TITLE = "title"
 
-        fun start(context: Context) {
+        fun start(context: Context, title: String? = null) {
             val intent = Intent(context, CastRelayForegroundService::class.java)
+                .putExtra(EXTRA_TITLE, title)
             androidx.core.content.ContextCompat.startForegroundService(context, intent)
         }
 

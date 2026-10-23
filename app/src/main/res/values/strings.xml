@@ -25,5 +25,6 @@
     <string name="cast_relay_channel">Cast relay</string>
     <string name="cast_relay_channel_desc">Keeps the phone relay running while the TV plays a cast stream.</string>
     <string name="cast_relay_notification_title">Casting to TV</string>
+    <string name="cast_relay_notification_title_channel">Casting %1$s</string>
     <string name="cast_relay_notification_text">Keep KPV running on Wi‑Fi while the TV plays.</string>
 </resources>

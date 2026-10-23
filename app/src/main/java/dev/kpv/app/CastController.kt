@@ -73,7 +73,7 @@ object CastController {
         }
         if (!isConnected()) return false
         CastRelayServer.ensureStarted()
-        CastRelayForegroundService.start(context.applicationContext)
+        CastRelayForegroundService.start(context.applicationContext, title)
         val token = CastRelayServer.register(stream) ?: run {
             Toast.makeText(context, R.string.cast_relay_failed, Toast.LENGTH_LONG).show()
             return false
@@ -81,8 +81,9 @@ object CastController {
         activeToken?.let { CastRelayServer.removeToken(it) }
         activeToken = token
         val url = CastHlsRelay.masterRelayUrl(ip, CastRelayServer.listeningPort, token)
-        val metadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE).apply {
+        val metadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_GENERIC).apply {
             putString(MediaMetadata.KEY_TITLE, title)
+            putString(MediaMetadata.KEY_SUBTITLE, context.getString(R.string.app_name))
         }
         val mediaInfo = MediaInfo.Builder(url)
             .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
