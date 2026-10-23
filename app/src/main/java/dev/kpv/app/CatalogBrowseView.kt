@@ -71,23 +71,34 @@ class CatalogBrowseView(
         }
     }
 
+    /** Called with true when every sport is hidden, so the screen can explain the empty list. */
+    var onAllHidden: (Boolean) -> Unit = {}
+
     fun setCategories(categories: List<StreamCategory>) {
         this.categories = categories
+        CategoryPrefsStore.rememberKnown(context, CategoryLayout.group(categories))
         rebuild()
     }
 
-    private fun toggleCategory(name: String) {
-        CollapsedCategories.toggle(context, name)
+    /** Re-applies saved order / hidden items (after Customize categories). */
+    fun refreshLayout() {
+        if (categories.isNotEmpty()) rebuild()
+    }
+
+    private fun toggleCategory(key: String) {
+        CollapsedCategories.toggle(context, key)
         val items = rebuild()
-        val headerPos = items.indexOfFirst { it is BrowseItem.Header && it.title == name }
+        val headerPos = items.indexOfFirst { it is BrowseItem.Header && it.key == key }
         if (headerPos >= 0 && television) {
             post { findViewHolderForAdapterPosition(headerPos)?.itemView?.requestFocus() }
         }
     }
 
     private fun rebuild(): List<BrowseItem> {
-        val items = flattenForBrowse(categories, television, CollapsedCategories.load(context))
+        val layout = CategoryLayout.arrange(CategoryLayout.group(categories), CategoryPrefsStore.load(context))
+        val items = flattenForBrowse(layout, television, CollapsedCategories.load(context))
         browseAdapter.submitItems(items)
+        onAllHidden(categories.isNotEmpty() && layout.isEmpty())
         return items
     }
 

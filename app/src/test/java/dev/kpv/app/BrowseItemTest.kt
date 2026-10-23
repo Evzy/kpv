@@ -5,34 +5,45 @@ import org.junit.Test
 
 class BrowseItemTest {
 
-    private fun channel(id: String) = ChannelListing(id, "", id, "", "")
+    private fun channel(id: String, tag: String = "") = ChannelListing(id, tag, id, "", "")
 
-    private val categories = listOf(
-        StreamCategory("Football", listOf(channel("a"), channel("b"))),
-        StreamCategory("Basketball", listOf(channel("c"))),
+    private val sports = CategoryLayout.arrange(
+        CategoryLayout.group(
+            listOf(
+                StreamCategory("Football", listOf(channel("a", "EPL"), channel("b", "MLS"), channel("c", "EPL"))),
+                StreamCategory("Basketball", listOf(channel("d", "NBA"))),
+            ),
+        ),
+        CategoryLayout.Prefs(),
     )
 
+    private val eplKey = CategoryLayout.leagueKey("Football", "EPL")
+    private val mlsKey = CategoryLayout.leagueKey("Football", "MLS")
+
     @Test
-    fun collapsedCategoryKeepsHeaderButHidesChannels() {
-        val items = flattenForBrowse(categories, television = true, collapsed = setOf("Football"))
+    fun collapsedSportKeepsHeaderButHidesLeagues() {
+        val items = flattenForBrowse(sports, television = true, collapsed = setOf("Football"))
         assertEquals(
             listOf(
-                BrowseItem.Header("Football", collapsed = true),
-                BrowseItem.Header("Basketball", collapsed = false),
-                BrowseItem.Channel(channel("c")),
+                BrowseItem.Header("Football", "Football", collapsed = true),
+                BrowseItem.Header("Basketball", "Basketball"),
+                BrowseItem.Channel(channel("d", "NBA")),
             ),
             items,
         )
     }
 
     @Test
-    fun phoneLayoutUsesRowsForExpandedCategories() {
-        val items = flattenForBrowse(categories, television = false, collapsed = setOf("Basketball"))
+    fun leaguesGetSubHeadingsAndCanCollapse() {
+        val items = flattenForBrowse(sports, television = false, collapsed = setOf(mlsKey))
         assertEquals(
             listOf(
-                BrowseItem.Header("Football"),
-                BrowseItem.Row(listOf(channel("a"), channel("b"))),
-                BrowseItem.Header("Basketball", collapsed = true),
+                BrowseItem.Header("Football", "Football"),
+                BrowseItem.Header(eplKey, "EPL", level = 1),
+                BrowseItem.Row(listOf(channel("a", "EPL"), channel("c", "EPL"))),
+                BrowseItem.Header(mlsKey, "MLS", collapsed = true, level = 1),
+                BrowseItem.Header("Basketball", "Basketball"),
+                BrowseItem.Row(listOf(channel("d", "NBA"))),
             ),
             items,
         )

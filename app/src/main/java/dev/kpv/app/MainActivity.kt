@@ -68,6 +68,14 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(16), dp(8), dp(16), dp(8))
             text = "Loading channels…"
         }
+        catalogView.onAllHidden = { allHidden ->
+            if (allHidden) {
+                status.visibility = android.view.View.VISIBLE
+                status.text = "All categories are hidden. Show some in Settings → Customize categories."
+            } else if (status.text.startsWith("All categories")) {
+                status.visibility = android.view.View.GONE
+            }
+        }
 
         loaderHost = FrameLayout(this).apply {
             isClickable = false
@@ -182,7 +190,10 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateFlow.onResume()
-        if (catalogReady) refreshScores()
+        if (catalogReady) {
+            catalogView.refreshLayout()
+            refreshScores()
+        }
     }
 
     private fun refreshScores() {
@@ -280,12 +291,12 @@ class MainActivity : AppCompatActivity() {
             catalogReady = true
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
+                status.visibility = android.view.View.GONE
                 catalogView.setCategories(result)
                 shownCategories = result
                 refreshScores()
                 catalogView.visibility = android.view.View.VISIBLE
                 swipeRefresh.isRefreshing = false
-                status.visibility = android.view.View.GONE
                 updateCastButtonVisibility()
             }
         }.also { it.start() }

@@ -1,9 +1,11 @@
 package dev.kpv.app
 
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
@@ -84,14 +86,32 @@ class CatalogBrowseAdapter(
         private val title = view.findViewById<TextView>(R.id.title)
         private val chevron = view.findViewById<View>(R.id.chevron)
 
+        private val density = view.resources.displayMetrics.density
+
         fun bind(header: BrowseItem.Header, onClick: (String) -> Unit) {
             title.text = header.title
+            val league = header.level > 0
+            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (league) 17f else 22f)
+            title.setTextColor(
+                ContextCompat.getColor(
+                    itemView.context,
+                    if (league) R.color.kpv_text_secondary else R.color.kpv_text_primary,
+                ),
+            )
+            itemView.setPaddingRelative(
+                ((if (league) 20 else 4) * density).toInt(),
+                itemView.paddingTop,
+                itemView.paddingEnd,
+                itemView.paddingBottom,
+            )
+            chevron.scaleX = if (league) 0.75f else 1f
+            chevron.scaleY = chevron.scaleX
             chevron.rotation = if (header.collapsed) 0f else 180f
             itemView.contentDescription = itemView.context.getString(
                 if (header.collapsed) R.string.category_expand else R.string.category_collapse,
                 header.title,
             )
-            itemView.setOnClickListener { onClick(header.title) }
+            itemView.setOnClickListener { onClick(header.key) }
         }
     }
 

@@ -59,6 +59,11 @@
             android:theme="@style/Theme.CowsTv" />
 
         <activity
+            android:name=".CategoryEditorActivity"
+            android:exported="false"
+            android:theme="@style/Theme.CowsTv" />
+
+        <activity
             android:name=".PlayerActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
             android:exported="false"

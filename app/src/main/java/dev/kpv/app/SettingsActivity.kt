@@ -70,6 +70,9 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.save).setOnClickListener { saveSiteAndFinish() }
+        findViewById<Button>(R.id.customize_categories).setOnClickListener {
+            startActivity(android.content.Intent(this, CategoryEditorActivity::class.java))
+        }
         findViewById<TextView>(R.id.app_version).text =
             getString(R.string.settings_installed_version, BuildConfig.VERSION_NAME)
         findViewById<Button>(R.id.check_updates).setOnClickListener { updateFlow.check(userInitiated = true) }

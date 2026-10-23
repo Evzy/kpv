@@ -7,6 +7,12 @@
     <string name="site_origin">Site URL</string>
     <string name="hint_site">https://…</string>
     <string name="save_and_reload">Save and reload</string>
+    <string name="customize_categories">Customize categories</string>
+    <string name="customize_categories_hint">Reorder or hide sports and leagues. Changes save automatically.</string>
+    <string name="customize_categories_reset">Reset to default</string>
+    <string name="customize_categories_empty">Open the home screen once so the categories can be listed here.</string>
+    <string name="customize_hide">Hide</string>
+    <string name="customize_show">Show</string>
     <string name="settings_site_required">Enter a site URL.</string>
     <string name="category_collapse">Collapse %1$s</string>
     <string name="category_expand">Expand %1$s</string>
