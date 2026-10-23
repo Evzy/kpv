@@ -17,21 +17,24 @@ started. 24/7 channels keep their existing tag line.
 | Live, team sport, no score found | `Live · Score TBC` |
 | Live, not a two-team title | `Live · started 7:30 PM` |
 | Finished (ESPN `post`) | `Final · NE 21 – 24 CHI` |
+| Past `ends_at`, no ESPN result | `Ended` |
 | `always_live` or no `starts_at` | existing tag (`ch.tag` or `Live`) |
 
 - Times use the device clock and timezone (`Date` locale formatting on Tizen,
   `java.time` + system zone on Android). 12-hour clock with AM/PM.
 - Teams appear in title order (left team first), using ESPN `team.abbreviation`.
 - Status detail is ESPN `status.type.shortDetail` (e.g. `Q2 5:12`, `45'`, `Half`).
-- "Live" means `starts_at <= now` and not `always_live`, using the API `timestamp` as now.
+- "Live" means `starts_at <= now` and not `always_live`, using the device clock as now.
+- The line sits between the title and the existing tag line (league name stays visible);
+  cards grow by one 18px line.
 
 ## Scores source
 
 ESPN public scoreboard, no key:
-`https://site.api.espn.com/apis/site/v2/sports/<path>/scoreboard?dates=<YYYYMMDD>-<YYYYMMDD>`
+`https://site.api.espn.com/apis/site/v2/sports/<path>/scoreboard?limit=300`
 
-The date range runs from the UTC day before the earliest started event to the UTC day after
-the latest. ESPN allows any origin; Tizen `config.xml` already allows `*`.
+ESPN's default scoreboard is the current day or week and always includes in-progress games
+(date ranges return 400). ESPN allows any origin; Tizen `config.xml` already allows `*`.
 
 Site tag to ESPN path:
 
@@ -66,7 +69,8 @@ Tag matching is case-insensitive. Unknown tags get no score lookup (team titles 
   `afc`, collapse spaces.
 - A title team matches an ESPN competitor when its normalised name equals, or contains, or is
   contained in any of `displayName`, `shortDisplayName`, `name`, `location` (normalised,
-  non-empty, at least 3 characters for containment).
+  non-empty, at least 3 characters for containment). Containment is whole-word and skips
+  `location`, so `Los Angeles Rams` cannot match the Chargers.
 - An ESPN event matches when both title teams match different competitors.
 - Only events whose ESPN `status.type.state` is `in` or `post` produce a score.
 

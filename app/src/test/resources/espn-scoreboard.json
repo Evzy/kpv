@@ -1,0 +1,156 @@
+{
+  "events": [
+    {
+      "name": "New England Patriots at Chicago Bears",
+      "date": "2026-10-23T00:15Z",
+      "status": {
+        "type": {
+          "state": "in",
+          "shortDetail": "5:11 - 1st"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "score": "3",
+              "team": {
+                "abbreviation": "CHI",
+                "displayName": "Chicago Bears",
+                "shortDisplayName": "Bears",
+                "name": "Bears",
+                "location": "Chicago"
+              }
+            },
+            {
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "abbreviation": "NE",
+                "displayName": "New England Patriots",
+                "shortDisplayName": "Patriots",
+                "name": "Patriots",
+                "location": "New England"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pittsburgh Steelers at New Orleans Saints",
+      "date": "2026-10-25T13:30Z",
+      "status": {
+        "type": {
+          "state": "pre",
+          "shortDetail": "10/25 - 9:30 AM EDT"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "score": "0",
+              "team": {
+                "abbreviation": "NO",
+                "displayName": "New Orleans Saints",
+                "shortDisplayName": "Saints",
+                "name": "Saints",
+                "location": "New Orleans"
+              }
+            },
+            {
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "abbreviation": "PIT",
+                "displayName": "Pittsburgh Steelers",
+                "shortDisplayName": "Steelers",
+                "name": "Steelers",
+                "location": "Pittsburgh"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "San Francisco 49ers at Atlanta Falcons",
+      "date": "2026-10-25T17:00Z",
+      "status": {
+        "type": {
+          "state": "pre",
+          "shortDetail": "10/25 - 1:00 PM EDT"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "score": "0",
+              "team": {
+                "abbreviation": "ATL",
+                "displayName": "Atlanta Falcons",
+                "shortDisplayName": "Falcons",
+                "name": "Falcons",
+                "location": "Atlanta"
+              }
+            },
+            {
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "abbreviation": "SF",
+                "displayName": "San Francisco 49ers",
+                "shortDisplayName": "49ers",
+                "name": "49ers",
+                "location": "San Francisco"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Borussia Mönchengladbach at VfB Stuttgart",
+      "date": "2026-10-22T16:30Z",
+      "status": {
+        "type": {
+          "state": "post",
+          "shortDetail": "FT"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "score": "2",
+              "team": {
+                "abbreviation": "STU",
+                "displayName": "VfB Stuttgart",
+                "shortDisplayName": "Stuttgart",
+                "name": "Stuttgart",
+                "location": "VfB Stuttgart"
+              }
+            },
+            {
+              "homeAway": "away",
+              "score": "1",
+              "team": {
+                "abbreviation": "MGL",
+                "displayName": "Borussia Mönchengladbach",
+                "shortDisplayName": "M'gladbach",
+                "name": "Mönchengladbach",
+                "location": "Borussia Mönchengladbach"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
