@@ -799,20 +799,11 @@ button.card .tag {
   color: #e5e7eb;
   text-align: center;
   line-height: 1.35;
+  white-space: pre-line;
 }
 
 .player-loading-screen--hud {
   pointer-events: none;
-}
-
-.watch-hud-log {
-  margin: 16px 0 0;
-  max-width: 90vw;
-  font: 16px/1.45 ui-monospace, monospace;
-  color: #9ca3af;
-  text-align: center;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .html5-video {
@@ -858,12 +849,6 @@ body.avplay-active.watch-body {
 body.avplay-active .watch-frame,
 body.avplay-active .player-loading-screen.hidden {
   background: transparent !important;
-}
-
-body.avplay-active .player-status {
-  background: rgba(0, 0, 0, 0.45);
-  padding: 8px 16px;
-  border-radius: 8px;
 }
 
 .watch-frame {

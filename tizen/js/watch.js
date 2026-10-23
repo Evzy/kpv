@@ -34,8 +34,6 @@
   const payload = readPayload();
   const loading = document.getElementById("player-loading");
   const loadingText = document.getElementById("loading-text");
-  const status = document.getElementById("player-status");
-  const hudLog = document.getElementById("watch-hud-log");
 
   let paused = false;
   let recovering = false;
@@ -44,11 +42,6 @@
 
   function step(msg) {
     if (loadingText) loadingText.textContent = msg;
-    if (status) {
-      status.textContent = msg;
-      status.style.display = msg ? "block" : "none";
-    }
-    if (hudLog) hudLog.textContent = msg;
     if (loading) loading.classList.remove("hidden");
   }
 
@@ -76,11 +69,6 @@
   function clearPlaybackHud() {
     hideLoading();
     if (loadingText) loadingText.textContent = "";
-    if (status) {
-      status.textContent = "";
-      status.style.display = "none";
-    }
-    if (hudLog) hudLog.textContent = "";
   }
 
   function exitWatch() {
