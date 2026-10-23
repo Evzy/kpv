@@ -229,6 +229,7 @@
     if (!remote || compareTriple(parseTriple(remote), parseTriple(running)) <= 0) {
       return;
     }
+    showToast("Downloading KPV v" + remote + "…", 8000);
     xhrGet(manifest.bundleUrl, "arraybuffer", true)
       .then(function (buf) {
         return applyBundleZip(buf, manifest.bundleSha256);
@@ -256,11 +257,6 @@
         return JSON.parse(text);
       })
       .then(function (manifest) {
-        var remote = String(manifest.bundleVersion || "");
-        var cached = readCachedVersion();
-        if (remote && compareTriple(parseTriple(remote), parseTriple(cached)) > 0) {
-          showToast("Downloading KPV v" + remote + "…", 8000);
-        }
         runWithManifest(manifest);
       })
       .catch(function (err) {

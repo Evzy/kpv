@@ -17,8 +17,9 @@ function makeStorage() {
   };
 }
 
-function makeContext(session) {
+function makeContext(session, manifest = MANIFEST) {
   const requests = [];
+  const shown = [];
   class XMLHttpRequest {
     open(method, url) {
       this.url = url;
@@ -28,7 +29,7 @@ function makeContext(session) {
       setTimeout(() => {
         if (/kpv-tv-manifest\.json/.test(this.url)) {
           this.status = 200;
-          this.response = MANIFEST;
+          this.response = manifest;
           this.onload();
         } else {
           this.onerror();
@@ -43,7 +44,7 @@ function makeContext(session) {
     querySelectorAll: () => [{ getAttribute: () => "boot.js" }],
     getElementById: () => null,
     createElement: el,
-    body: { appendChild() {}, classList: { remove() {} } },
+    body: { appendChild: (node) => shown.push(node.textContent || ""), classList: { remove() {} } },
     head: { appendChild() {} },
     addEventListener() {},
   };
@@ -59,7 +60,7 @@ function makeContext(session) {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  return { ctx, requests };
+  return { ctx, requests, shown };
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 10));
@@ -76,6 +77,28 @@ const tick = () => new Promise((r) => setTimeout(r, 10));
   vm.runInContext(bootstrap, back.ctx);
   await tick();
   assert.equal(back.requests.length, 0, "returning to index.html in the same session skips the check");
+}
+
+{
+  const latest = JSON.stringify({ bundleVersion: "1.0.56", bundleUrl: "https://x.test/b.zip" });
+  const { ctx, requests, shown } = makeContext(makeStorage(), latest);
+  ctx.KPV_APP_VERSION = "1.0.56";
+  ctx.localStorage.setItem("kpv_bundle_version", "1.0.52");
+  vm.runInContext(readFileSync(path.join(root, "js", "bootstrap.js"), "utf8"), ctx);
+  await tick();
+  assert.deepEqual(
+    shown.filter((t) => /Downloading/.test(t)),
+    [],
+    "no download message when the running app is already the latest (stale saved bundle)",
+  );
+  assert.equal(requests.filter((u) => /b\.zip/.test(u)).length, 0, "no bundle download");
+}
+
+{
+  const { ctx, shown } = makeContext(makeStorage());
+  vm.runInContext(readFileSync(path.join(root, "js", "bootstrap.js"), "utf8"), ctx);
+  await tick();
+  assert.ok(shown.some((t) => /Downloading KPV v9\.9\.9/.test(t)), "real updates still announce the download");
 }
 
 {
