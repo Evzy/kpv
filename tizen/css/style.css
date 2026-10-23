@@ -182,8 +182,60 @@ body.settings-open .remote-guide {
 
 .category h2 {
   font-size: 22px;
-  margin-bottom: 14px;
+  margin: 0;
   color: #e5e7eb;
+}
+
+.category-head {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #e5e7eb;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.category-head h2 {
+  flex: 1 1 auto;
+}
+
+.category-head:focus,
+.category-head.is-focused {
+  border-color: #14b8a6;
+  background: #1a2433;
+  outline: none;
+}
+
+/* Chevron points up while expanded (press to collapse), down while collapsed. */
+.category-chevron {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 6px 8px 0;
+  border-right: 3px solid #e5e7eb;
+  border-bottom: 3px solid #e5e7eb;
+  transform: rotate(-135deg);
+}
+
+.category--collapsed .category-chevron {
+  margin-top: -6px;
+  transform: rotate(45deg);
+}
+
+.category--collapsed {
+  margin-bottom: 8px;
+}
+
+.category--collapsed .row {
+  display: none;
 }
 
 .row {

@@ -1,7 +1,7 @@
 {
-  "version": "1.0.51",
-  "versionCode": 52,
-  "wgtShellVersion": "1.0.51",
+  "version": "1.0.52",
+  "versionCode": 53,
+  "wgtShellVersion": "1.0.52",
   "minWgtShell": "1.0.38",
   "forceWgtInstall": false,
   "githubOwner": "Evzy"

@@ -1,4 +1,4 @@
-/* global document, tizen */
+/* global document, tizen, CatalogNav */
 const TvNav = (() => {
   const KEY = {
     UP: 38,
@@ -141,9 +141,8 @@ const TvNav = (() => {
     }
 
     if (code === KEY.DOWN && isTopBarControl(active)) {
-      const first = document.querySelector("#catalog .card");
-      if (first) {
-        first.focus();
+      if (document.querySelector("#catalog .category")) {
+        CatalogNav.focusFirst();
         e.preventDefault();
       }
       return;

@@ -65,12 +65,24 @@
     status.classList.add("hidden");
     catalogEl.classList.remove("hidden");
     catalogEl.innerHTML = "";
+    const collapsed = CatalogNav.loadCollapsed();
     for (const cat of categories) {
       const section = document.createElement("section");
       section.className = "category";
-      const h2 = document.createElement("h2");
-      h2.textContent = cat.name;
-      section.appendChild(h2);
+      section.classList.toggle("category--collapsed", collapsed.has(cat.name));
+      const head = document.createElement("button");
+      head.type = "button";
+      head.className = "category-head";
+      head.innerHTML = `<h2>${escapeHtml(cat.name)}</h2><span class="category-chevron" aria-hidden="true"></span>`;
+      head.setAttribute("aria-expanded", collapsed.has(cat.name) ? "false" : "true");
+      head.addEventListener("click", () => CatalogNav.toggleSection(section, cat.name));
+      head.addEventListener("keydown", (e) => {
+        if (e.keyCode === TvNav.KEY.ENTER) {
+          e.preventDefault();
+          CatalogNav.toggleSection(section, cat.name);
+        }
+      });
+      section.appendChild(head);
       const row = document.createElement("div");
       row.className = "row";
       for (const ch of cat.channels) {
@@ -104,10 +116,9 @@
       section.appendChild(row);
       catalogEl.appendChild(section);
     }
-    const first = catalogEl.querySelector(".card");
-    if (first) CatalogNav.focusCard(first);
+    CatalogNav.focusFirst();
     if (typeof RemoteGuide !== "undefined") {
-      RemoteGuide.say("↑ top bar (Refresh / Settings) · OK on a channel to play");
+      RemoteGuide.say("↑ top bar (Refresh / Settings) · OK on a category to hide/show · OK on a channel to play");
     }
   }
 
