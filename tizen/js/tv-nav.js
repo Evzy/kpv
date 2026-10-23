@@ -61,13 +61,6 @@ const TvNav = (() => {
     } catch (_) {
       el.focus();
     }
-    if (typeof RemoteGuide !== "undefined") {
-      if (el === refreshBtn()) {
-        RemoteGuide.say("OK — refresh channel list");
-      } else if (el === settingsBtn()) {
-        RemoteGuide.say("OK — open Settings (Site URL is at the top)");
-      }
-    }
   }
 
   function focusSettings() {

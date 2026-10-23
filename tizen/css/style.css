@@ -125,48 +125,9 @@ button:focus-visible,
 }
 
 .browse {
-  height: calc(100% - 72px - 56px);
+  height: calc(100% - 72px);
   overflow-y: auto;
   padding: 16px 24px 32px;
-}
-
-.remote-guide {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  min-height: 56px;
-  padding: 10px 32px;
-  background: linear-gradient(180deg, rgba(18, 21, 30, 0.92), #12151e);
-  border-top: 2px solid #243044;
-  font-size: 17px;
-}
-
-.remote-guide-keys {
-  font-weight: 700;
-  color: #14b8a6;
-}
-
-.remote-guide-sep {
-  color: #6b7280;
-}
-
-.remote-guide-msg {
-  flex: 1 1 320px;
-  color: #e5e7eb;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.settings.settings--open ~ .remote-guide,
-body.settings-open .remote-guide {
-  background: #0a1628;
-  border-top-color: #14b8a6;
 }
 
 .status {
@@ -505,7 +466,7 @@ button.card .tag {
   position: fixed;
   top: 72px;
   right: 0;
-  bottom: 56px;
+  bottom: 0;
   left: 0;
   padding: 24px 48px 32px;
   background: #010208;

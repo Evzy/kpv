@@ -312,9 +312,6 @@ const SettingsPanel = (() => {
     document.addEventListener("tizenhwkey", captureTizenBack, true);
     updateSiteUrlDisplay();
     applyRowFocus();
-    if (typeof RemoteGuide !== "undefined") {
-      RemoteGuide.say("Site URL at top · teal Save box below");
-    }
     if (typeof TvUpdate !== "undefined") {
       TvUpdate.fetchStatus({ useSession: true }).then(function (s) {
         showHint(TvUpdate.settingsSummary(s));
@@ -338,9 +335,6 @@ const SettingsPanel = (() => {
     panel.setAttribute("aria-hidden", "true");
     document.body.classList.remove("settings-open");
     if (browse) browse.classList.remove("hidden");
-    if (typeof RemoteGuide !== "undefined") {
-      RemoteGuide.say("Press ↑ for Refresh and Settings (gear)");
-    }
     lockTextFields();
     blurTextFields();
     for (const el of focusables()) {

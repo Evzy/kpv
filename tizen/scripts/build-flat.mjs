@@ -16,7 +16,6 @@ const jsOrder = [
   "bundle-cache.js",
   "site.js",
   "tv-keys.js",
-  "remote-guide.js",
   "playback-cache.js",
   "stream-resolve.js",
   "stream-live.js",

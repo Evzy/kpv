@@ -22,6 +22,9 @@
       ".category h2{color:#e5e7eb!important}";
     document.head.appendChild(fix);
   }
+  // Older installed index.html still has the remote tips footer; hot-updated bundles drop it.
+  const legacyGuide = document.querySelector(".remote-guide");
+  if (legacyGuide) legacyGuide.remove();
   TvNav.registerKeys();
   TvNav.wireTopBarFocusRing();
   CatalogNav.wire();
@@ -136,9 +139,6 @@
         fixtureEls.get(ch).textContent = text;
       });
     });
-    if (typeof RemoteGuide !== "undefined") {
-      RemoteGuide.say("↑ top bar (Refresh / Settings) · OK on a heading to hide/show · OK on a channel to play");
-    }
   }
 
   function renderRow(channels, nowSec, fixtureEls) {
@@ -200,9 +200,6 @@
     Site.load();
     if (!Site.siteOrigin()) {
       setStatus("Set your site URL first: press ↑, then → to the gear, OK for Settings.");
-      if (typeof RemoteGuide !== "undefined") {
-        RemoteGuide.say("↑ then → to gear · OK opens Settings · Site URL is the first box");
-      }
       return;
     }
     setRefreshBusy(true);
