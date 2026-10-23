@@ -192,7 +192,16 @@ const SettingsPanel = (() => {
       } catch (_) {
         wrap.scrollIntoView(false);
       }
+      keepClearOfHintBar(panel, wrap);
     }
+  }
+
+  /** The sticky hint bar sits over the bottom of the panel; scroll the focused row above it. */
+  function keepClearOfHintBar(scroller, el) {
+    const bar = scroller && scroller.querySelector(".settings-hint-bar");
+    if (!bar) return;
+    const overlap = el.getBoundingClientRect().bottom - bar.getBoundingClientRect().top + 12;
+    if (overlap > 0) scroller.scrollTop += overlap;
   }
 
   function normalizeUrl(raw) {

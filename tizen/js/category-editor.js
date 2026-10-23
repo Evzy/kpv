@@ -40,8 +40,9 @@ const CategoryEditor = (() => {
     block.innerHTML =
       '<h3 class="settings-block-title">Categories</h3>' +
       '<button type="button" class="settings-secondary-btn">Customize categories</button>';
-    const hintBar = settingsPanel.querySelector(".settings-hint-bar");
-    settingsPanel.insertBefore(block, hintBar);
+    const after = settingsPanel.querySelector(".settings-block--save");
+    const before = (after && after.nextSibling) || settingsPanel.querySelector(".settings-hint-bar");
+    settingsPanel.insertBefore(block, before);
     return block.querySelector("button");
   }
 
@@ -91,6 +92,8 @@ const CategoryEditor = (() => {
     b.classList.add("is-focused");
     b.focus();
     b.scrollIntoView({ block: "nearest", behavior: "auto" });
+    const overlap = rowEl.getBoundingClientRect().bottom - hint.getBoundingClientRect().top + 12;
+    if (overlap > 0) panel.scrollTop += overlap;
     const r = rows[rowIdx];
     if (r.kind === "reset") hint.textContent = "OK — back to the automatic order and show everything.";
     else if (col === 0) hint.textContent = `OK — ${r.hidden ? "show" : "hide"} ${r.label}.`;

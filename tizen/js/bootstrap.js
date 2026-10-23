@@ -96,7 +96,7 @@
     var wrap = document.createElement("div");
     wrap.id = "kpv-wgt-block";
     wrap.style.cssText =
-      "position:fixed;inset:0;z-index:99999;background:#0a0e14;color:#e8eef5;font:24px/1.4 sans-serif;padding:48px;box-sizing:border-box;";
+      "position:fixed;top:0;right:0;bottom:0;left:0;z-index:99999;background:#0a0e14;color:#e8eef5;font:24px/1.4 sans-serif;padding:48px;box-sizing:border-box;";
     var wgtUrl = (manifest && manifest.wgtUrl) || "";
     var latest =
       (manifest && manifest.bundleVersion) ||

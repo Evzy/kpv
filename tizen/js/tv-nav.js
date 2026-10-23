@@ -181,6 +181,8 @@ const TvNav = (() => {
       if (typeof TvKeys !== "undefined" ? TvKeys.isSelect(e) : e.keyCode === KEY.ENTER) {
         openSettings();
         e.preventDefault();
+        // Otherwise this OK bubbles to the now-open panel and opens the keyboard on its first row.
+        e.stopPropagation();
       }
     });
     btn.addEventListener("click", () => openSettings());
