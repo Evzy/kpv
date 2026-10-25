@@ -31,6 +31,12 @@
     <string name="update_failed">Update failed: %1$s</string>
     <string name="update_failed_signature">This update uses a different signing key than your installed KPV (common if you installed v1.0.7 or a PC-built APK). Uninstall KPV, then install the latest APK from GitHub Releases.</string>
     <string name="cast">Cast</string>
+    <string name="unlock_title">Unlock KPV</string>
+    <string name="unlock_hint">Send this device code to the app owner to get your unlock code. You only need to do this once.</string>
+    <string name="unlock_device_code">Device code: %1$s</string>
+    <string name="unlock_code_hint">Unlock code</string>
+    <string name="unlock_button">Unlock</string>
+    <string name="unlock_wrong">That code doesn\'t match this device.</string>
     <string name="chat_show">Show chat</string>
     <string name="chat_hide">Hide chat</string>
     <string name="cast_no_wifi">Connect to Wi‑Fi to cast.</string>

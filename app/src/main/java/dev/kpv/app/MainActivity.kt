@@ -6,6 +6,7 @@ import android.util.TypedValue
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import dev.kpv.app.update.AppUpdateFlow
+import dev.kpv.app.unlock.AppUnlock
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -42,6 +43,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!AppUnlock.isUnlocked(this)) {
+            startActivity(Intent(this, UnlockActivity::class.java))
+            finish()
+            return
+        }
         TvHelper.applyScreenOrientation(this)
         PhoneSystemBars.enableEdgeToEdge(this)
 

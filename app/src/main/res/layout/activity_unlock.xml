@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/unlock_scroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/kpv_bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <LinearLayout
+            android:id="@+id/unlock_form"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="12dp"
+                android:text="@string/unlock_title"
+                android:textColor="@color/kpv_text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/unlock_hint"
+                android:textColor="@color/kpv_text_secondary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/device_code"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="20dp"
+                android:paddingBottom="20dp"
+                android:textColor="@color/kpv_text_primary"
+                android:textIsSelectable="true"
+                android:textSize="20sp" />
+
+            <EditText
+                android:id="@+id/unlock_code"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autofillHints=""
+                android:hint="@string/unlock_code_hint"
+                android:imeOptions="actionDone|flagNoFullscreen"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:maxLength="7"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textColor="@color/kpv_text_primary"
+                android:textColorHint="@color/kpv_text_secondary"
+                android:textSize="20sp" />
+
+            <TextView
+                android:id="@+id/unlock_error"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:text="@string/unlock_wrong"
+                android:textColor="#F87171"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/unlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/unlock_button" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
