@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/kpv_divider">
+    <item>
+        <selector>
+            <item android:state_focused="true" android:state_selected="true">
+                <shape android:shape="oval">
+                    <solid android:color="@color/kpv_accent" />
+                    <stroke
+                        android:width="3dp"
+                        android:color="@color/kpv_text_primary" />
+                </shape>
+            </item>
+            <item android:state_focused="true">
+                <shape android:shape="oval">
+                    <solid android:color="#99000000" />
+                    <stroke
+                        android:width="3dp"
+                        android:color="@color/kpv_accent" />
+                </shape>
+            </item>
+            <item android:state_selected="true">
+                <shape android:shape="oval">
+                    <solid android:color="@color/kpv_accent" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="oval">
+                    <solid android:color="#99000000" />
+                </shape>
+            </item>
+        </selector>
+    </item>
+</ripple>

@@ -335,7 +335,7 @@ class MainActivity : AppCompatActivity() {
                     ).show()
                 } else {
                     @Suppress("DEPRECATION")
-                    startActivityForResult(PlayerActivity.intent(this, stream, channel.title), REQUEST_PLAY)
+                    startActivityForResult(PlayerActivity.intent(this, stream, channel.title, channel.streamId), REQUEST_PLAY)
                 }
             }
         }.also { it.start() }

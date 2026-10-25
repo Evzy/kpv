@@ -15,4 +15,6 @@ data class ChannelListing(
     val startsAt: Long = 0L,
     val endsAt: Long = 0L,
     val alwaysLive: Boolean = false,
+    /** Numeric catalog `id`; keys the live chat. 0 when the source has none. */
+    val streamId: Long = 0L,
 )

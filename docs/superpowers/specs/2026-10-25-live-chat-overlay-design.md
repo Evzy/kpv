@@ -39,8 +39,8 @@ per app run: fetch the live page, follow its `_app` JS module scripts and regex
   pings, `private` messages and blank text; caps prefill to the last 5.
 - **`LiveChatClient`** — OkHttp WebSocket wrapper. `start(streamId)` / `stop()`. Reconnects after
   5 s when the socket drops unintentionally. Delivers parsed messages on the main thread.
-- **`ChatOverlayView`** — `LinearLayout` (vertical, bottom-aligned) in the bottom-start corner of
-  the player. Each line is a rounded semi-transparent dark bubble with the username in its colour
+- **`ChatOverlayView`** — `LinearLayout` (vertical, bottom-aligned) in the bottom-end corner of
+  the player, bubbles right-aligned. Each line is a rounded semi-transparent dark bubble with the username in its colour
   and the message in white. New lines slide up + fade in; at most 5 are shown (oldest removed);
   each fades out after ~8 s. Incoming lines are paced (≥350 ms apart) and the pending queue is
   capped (oldest dropped) so busy chats don't flood. Width ~40% of screen on phone landscape,
