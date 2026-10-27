@@ -24,6 +24,7 @@
   <script src="tv-keys.js"></script>
   <script src="watch-controls.js"></script>
   <script src="chat-overlay.js"></script>
+  <script src="stream-sources.js"></script>
 </head>
 <body tabindex="0">
   <video id="v" autoplay playsinline></video>
@@ -67,18 +68,45 @@
         }
       }
 
-      function pickSource(i) {
-        if (i === si) return;
-        var s = sources[i];
-        watch.si = i;
-        watch.uri = s.uri;
-        watch.u = s.iframe || "";
-        watch.hls = "";
+      function saveWatch() {
         try {
           sessionStorage.setItem("kpv_watch", JSON.stringify(watch));
         } catch (e) {}
+      }
+
+      /** Back to watch.html to resolve source `i`; `fresh` skips the cached link. */
+      function goToSource(i, fresh, tried) {
+        var s = sources[i];
+        if (s) {
+          watch.si = i;
+          watch.uri = s.uri;
+          watch.u = s.iframe || "";
+        }
+        watch.hls = "";
+        watch.fresh = fresh;
+        watch.tried = tried;
+        saveWatch();
         if (chat) chat.stop();
         window.location.replace("watch.html");
+      }
+
+      function pickSource(i) {
+        if (i !== si) goToSource(i, false, []);
+      }
+
+      /** Unrecoverable error: refresh the link once, then move to the next untried source. */
+      function giveUp(reason) {
+        if (!watch.fresh && watch.uri) {
+          if (controls) controls.toast("Stream lost — getting a new link…");
+          goToSource(si, true, watch.tried || []);
+          return true;
+        }
+        var tried = (watch.tried || []).concat([si]);
+        var next = sources.length ? StreamSources.next(sources.length, si, new Set(tried)) : null;
+        if (next === null) return false;
+        if (controls) controls.toast(sources[si].label + " didn't load, trying " + sources[next].label);
+        goToSource(next, false, tried);
+        return true;
       }
 
       if (typeof WatchControls !== "undefined") {
@@ -150,9 +178,39 @@
         document.body.focus();
       }
       function fail(t) {
+        clearInterval(watchdog);
+        if (hls) hls.destroy();
+        hls = null;
+        v.removeAttribute("src");
+        if (giveUp()) return;
         msg.style.display = "flex";
         msg.textContent = t + "\n\nPress Back to return.";
       }
+
+      var hls = null;
+      var STALL_MS = 30000;
+      var lastTime = -1;
+      var stalledSince = Date.now();
+      var watchdog = setInterval(function () {
+        if (v.paused && v.currentTime > 0) {
+          stalledSince = Date.now();
+          return;
+        }
+        if (v.currentTime !== lastTime) {
+          lastTime = v.currentTime;
+          stalledSince = Date.now();
+          return;
+        }
+        if (Date.now() - stalledSince < STALL_MS) return;
+        fail("Stream stalled.");
+      }, 5000);
+
+      v.addEventListener("playing", function () {
+        if (!watch.fresh && !(watch.tried || []).length) return;
+        watch.fresh = false;
+        watch.tried = [];
+        saveWatch();
+      });
 
       if (!u) {
         fail("No stream URL.");
@@ -170,7 +228,7 @@
             } catch (e) {}
           };
         }
-        var hls = new Hls(hlsConfig);
+        hls = new Hls(hlsConfig);
         hls.loadSource(u);
         hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, function () {
@@ -184,8 +242,19 @@
             ok();
           });
         });
+        var recovered = false;
+        var hasLevels = false;
+        hls.on(Hls.Events.MANIFEST_LOADED, function () {
+          hasLevels = true;
+        });
         hls.on(Hls.Events.ERROR, function (_, data) {
           if (!data.fatal) return;
+          if (!recovered && hasLevels) {
+            recovered = true;
+            if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+            else hls.startLoad();
+            return;
+          }
           fail("Hls.js: " + (data.details || data.type || "error"));
         });
         return;

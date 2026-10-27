@@ -33,8 +33,7 @@ That matches the API design: the embed page negotiates tokens/headers; the app s
 Same stack as [sky-iptv-tizen](https://github.com/sanwhere/sky-iptv-tizen) / [TVapp](https://github.com/KaashDev/TVapp): **you need a direct `.m3u8`**, then:
 
 1. **`watch.html`** resolves HLS from the API (or optional **LAN resolver** — `GET {resolver}/resolve?uri=…` → `{ "m3u8": "…" }`).
-2. **`AvplayPlay`** (Samsung `webapis.avplay`) with Referer / live / adaptive props.
-3. **`hls-shell.html`** — bundled **Hls.js** + `<video>` if AVPlay fails (Referer passed via `xhrSetup`).
+2. **`hls-shell.html`** — bundled **Hls.js** + `<video>` (Referer passed via `xhrSetup`). Since v1.0.64 AVPlay is skipped: it failed on most streams. On an unrecoverable error the shell goes back to `watch.html` for one fresh link, then to the next untried source.
 
 Embed-only channels (empty API `m3u8`) **do not play by default** on Tizen. Options: site adds `m3u8` to the API, run a resolver on the LAN (future Android KPV endpoint), or set `localStorage kpv_use_embed_sniff=1` for experimental `sniff.html` (often fails on Tizen 6).
 

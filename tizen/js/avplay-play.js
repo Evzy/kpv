@@ -194,16 +194,6 @@ const AvplayPlay = (() => {
     }
   }
 
-  function resume() {
-    if (!hasAvplay() || !playing) return false;
-    try {
-      av().play();
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
   function restart() {
     if (!activeOpts || !activeOpts.url) return false;
     play(activeOpts);
@@ -217,5 +207,5 @@ const AvplayPlay = (() => {
     close();
   }
 
-  return { hasAvplay, play, pause, resume, restart, stop, close, isActive };
+  return { hasAvplay, play, pause, restart, stop, close, isActive };
 })();
