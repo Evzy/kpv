@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.updatePadding
 
-/** Settings → Customize categories: reorder and hide sports and their leagues. */
+/** Settings → Customize categories: hide Live now; reorder and hide sports and their leagues. */
 class CategoryEditorActivity : AppCompatActivity() {
 
     private lateinit var list: LinearLayout
@@ -83,6 +83,7 @@ class CategoryEditorActivity : AppCompatActivity() {
         val hide = smallButton(getString(if (row.hidden) R.string.customize_show else R.string.customize_hide)) {
             update(CategoryLayout.toggleHidden(prefs, row.key), row.key, 0)
         }
+        if (row.kind == CategoryLayout.Kind.LIVE_NOW) return listOf(hide)
         val up = smallButton("▲") { move(row, -1, 1) }
         val down = smallButton("▼") { move(row, 1, 2) }
         return listOf(hide, up, down)
@@ -90,6 +91,7 @@ class CategoryEditorActivity : AppCompatActivity() {
 
     private fun move(row: CategoryLayout.EditorRow, dir: Int, button: Int) {
         val next = when (row.kind) {
+            CategoryLayout.Kind.LIVE_NOW -> prefs
             CategoryLayout.Kind.SPORT -> CategoryLayout.moveSport(sports, prefs, row.sport, dir)
             CategoryLayout.Kind.LEAGUE -> CategoryLayout.moveLeague(sports, prefs, row.sport, row.league!!, dir)
         }

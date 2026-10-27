@@ -47,6 +47,7 @@ object ApiCatalogFetcher {
                     endsAt = stream.optLong("ends_at", 0L),
                     alwaysLive = stream.optInt("always_live", 0) == 1 || stream.optBoolean("always_live", false),
                     streamId = stream.optLong("id", 0L),
+                    sources = StreamSources.fromJson(stream),
                 )
             }
             if (channels.isNotEmpty()) categories += StreamCategory(name, channels)

@@ -17,4 +17,6 @@ data class ChannelListing(
     val alwaysLive: Boolean = false,
     /** Numeric catalog `id`; keys the live chat. 0 when the source has none. */
     val streamId: Long = 0L,
+    /** Main source then alternatives; empty when the stream has only one. */
+    val sources: List<StreamSource> = emptyList(),
 )

@@ -95,8 +95,9 @@ class CatalogBrowseView(
     }
 
     private fun rebuild(): List<BrowseItem> {
-        val layout = CategoryLayout.arrange(CategoryLayout.group(categories), CategoryPrefsStore.load(context))
-        val items = flattenForBrowse(layout, television, CollapsedCategories.load(context))
+        val prefs = CategoryPrefsStore.load(context)
+        val layout = CategoryLayout.arrange(CategoryLayout.group(categories), prefs)
+        val items = flattenForBrowse(CategoryLayout.withLiveNow(layout, prefs), television, CollapsedCategories.load(context))
         browseAdapter.submitItems(items)
         onAllHidden(categories.isNotEmpty() && layout.isEmpty())
         return items

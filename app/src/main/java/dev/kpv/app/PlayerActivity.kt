@@ -1,6 +1,7 @@
 package dev.kpv.app
 
 import android.content.Context
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import android.content.Intent
 import android.content.res.Configuration
@@ -43,13 +44,29 @@ class PlayerActivity : AppCompatActivity() {
         private const val CHAT_LIFT_DP = 64f
         const val RESULT_PLAYBACK_FAILED = RESULT_FIRST_USER
 
-        fun intent(context: Context, stream: ResolvedStream, title: String = "KPV", streamId: Long = 0L): Intent =
+        private const val EXTRA_SOURCE_LABELS = "source_labels"
+        private const val EXTRA_SOURCE_URIS = "source_uris"
+        private const val EXTRA_SOURCE_IFRAMES = "source_iframes"
+        private const val EXTRA_SOURCE_INDEX = "source_index"
+
+        fun intent(
+            context: Context,
+            stream: ResolvedStream,
+            title: String = "KPV",
+            streamId: Long = 0L,
+            sources: List<StreamSource> = emptyList(),
+            sourceIndex: Int = 0,
+        ): Intent =
             Intent(context, PlayerActivity::class.java)
                 .putExtra(EXTRA_URL, stream.url)
                 .putExtra(EXTRA_HEADER_NAMES, stream.headers.keys.toTypedArray())
                 .putExtra(EXTRA_HEADER_VALUES, stream.headers.values.toTypedArray())
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_STREAM_ID, streamId)
+                .putExtra(EXTRA_SOURCE_LABELS, sources.map { it.label }.toTypedArray())
+                .putExtra(EXTRA_SOURCE_URIS, sources.map { it.streamUri }.toTypedArray())
+                .putExtra(EXTRA_SOURCE_IFRAMES, sources.map { it.iframeUrl }.toTypedArray())
+                .putExtra(EXTRA_SOURCE_INDEX, sourceIndex)
     }
 
     private lateinit var playerView: PlayerView
@@ -64,6 +81,11 @@ class PlayerActivity : AppCompatActivity() {
     private var chatOverlay: ChatOverlayView? = null
     private var chatClient: LiveChatClient? = null
     private var chatOn = false
+    private var sources: List<StreamSource> = emptyList()
+    private var sourceIndex = 0
+    private var sourcesButton: ImageButton? = null
+    private var sourceResolver: StreamResolver? = null
+    private lateinit var resolveHost: FrameLayout
 
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,18 +100,12 @@ class PlayerActivity : AppCompatActivity() {
         val headers = names.zip(values).toMap()
         streamTitle = intent.getStringExtra(EXTRA_TITLE) ?: "KPV"
         streamId = intent.getLongExtra(EXTRA_STREAM_ID, 0L)
+        sources = readSources()
+        sourceIndex = intent.getIntExtra(EXTRA_SOURCE_INDEX, 0).coerceIn(0, maxOf(0, sources.lastIndex))
         resolvedStream = ResolvedStream(url, headers)
-        val headersForPlayer = headers.toMutableMap()
-        val userAgent = headersForPlayer.remove("User-Agent")
-
-        val dataSource = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setDefaultRequestProperties(headersForPlayer)
-            .apply { if (userAgent != null) setUserAgent(userAgent) }
-        val mediaSource = HlsMediaSource.Factory(dataSource).createMediaSource(MediaItem.fromUri(url))
 
         val exoPlayer = ExoPlayer.Builder(this).build().apply {
-            setMediaSource(mediaSource)
+            setMediaSource(mediaSourceFor(resolvedStream))
             playWhenReady = true
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -103,6 +119,17 @@ class PlayerActivity : AppCompatActivity() {
                     if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                         seekToDefaultPosition()
                         prepare()
+                    } else if (sources.size > 1) {
+                        if (sourceResolver != null) return
+                        val next = SourceQueue.next(sources.size, sourceIndex, setOf(sourceIndex))
+                        if (next != null) {
+                            Toast.makeText(
+                                this@PlayerActivity,
+                                getString(R.string.source_failed_trying, sources[sourceIndex].label, sources[next].label),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                        switchSource(next, setOf(sourceIndex), afterError = true)
                     } else {
                         setResult(RESULT_PLAYBACK_FAILED)
                         finish()
@@ -134,6 +161,17 @@ class PlayerActivity : AppCompatActivity() {
                     FrameLayout.LayoutParams.MATCH_PARENT,
                 ),
             )
+            resolveHost = FrameLayout(this@PlayerActivity).apply {
+                isClickable = false
+                isFocusable = false
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }
+            addView(resolveHost, FrameLayout.LayoutParams(1, 1, Gravity.BOTTOM or Gravity.START))
+            if (sources.size > 1) {
+                sourcesButton = createTopButton(topBar, R.drawable.ic_sources, getString(R.string.sources)) {
+                    showSourcePicker()
+                }
+            }
             if (streamId > 0L) {
                 val overlay = ChatOverlayView(this@PlayerActivity, television).apply { visibility = View.GONE }
                 chatOverlay = overlay
@@ -145,7 +183,7 @@ class PlayerActivity : AppCompatActivity() {
                         bottomMargin = (24 * density).toInt()
                     },
                 )
-                chatButton = createChatButton(topBar)
+                chatButton = createTopButton(topBar, R.drawable.ic_chat, getString(R.string.chat_show)) { toggleChat() }
             }
             if (!television) {
                 castButton = CastUi.attachRouteButton(
@@ -183,7 +221,7 @@ class PlayerActivity : AppCompatActivity() {
                 overlay.layoutParams = olp
             }
         }
-        if (chatButton != null) {
+        if (chatButton != null || sourcesButton != null) {
             @Suppress("DEPRECATION")
             playerView.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
                 onControllerVisibilityChanged(visibility == View.VISIBLE)
@@ -223,20 +261,102 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun createChatButton(parent: LinearLayout): ImageButton {
-        val size = (44 * resources.displayMetrics.density).toInt()
-        val pad = (10 * resources.displayMetrics.density).toInt()
+    private fun createTopButton(parent: LinearLayout, icon: Int, description: String, onClick: () -> Unit): ImageButton {
+        val density = resources.displayMetrics.density
+        val size = (44 * density).toInt()
+        val pad = (10 * density).toInt()
         return ImageButton(this).apply {
-            setImageResource(R.drawable.ic_chat)
+            setImageResource(icon)
             setBackgroundResource(R.drawable.bg_player_icon_button)
             scaleType = ImageView.ScaleType.FIT_CENTER
             setPadding(pad, pad, pad, pad)
-            contentDescription = getString(R.string.chat_show)
+            contentDescription = description
             isFocusable = true
             visibility = View.GONE
-            setOnClickListener { toggleChat() }
-            parent.addView(this, LinearLayout.LayoutParams(size, size))
+            setOnClickListener { onClick() }
+            parent.addView(this, LinearLayout.LayoutParams(size, size).apply { marginStart = (8 * density).toInt() })
         }
+    }
+
+    private fun readSources(): List<StreamSource> {
+        val labels = intent.getStringArrayExtra(EXTRA_SOURCE_LABELS).orEmpty()
+        val uris = intent.getStringArrayExtra(EXTRA_SOURCE_URIS).orEmpty()
+        val iframes = intent.getStringArrayExtra(EXTRA_SOURCE_IFRAMES).orEmpty()
+        if (labels.size != uris.size || labels.size != iframes.size) return emptyList()
+        return labels.indices.map { StreamSource(labels[it], uris[it], iframes[it]) }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun mediaSourceFor(stream: ResolvedStream): HlsMediaSource {
+        val headers = stream.headers.toMutableMap()
+        val userAgent = headers.remove("User-Agent")
+        val dataSource = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setDefaultRequestProperties(headers)
+            .apply { if (userAgent != null) setUserAgent(userAgent) }
+        return HlsMediaSource.Factory(dataSource).createMediaSource(MediaItem.fromUri(stream.url))
+    }
+
+    private fun showSourcePicker() {
+        val labels = sources.map { it.label }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.sources)
+            .setSingleChoiceItems(labels, sourceIndex) { dialog, which ->
+                dialog.dismiss()
+                if (which != sourceIndex) switchSource(which, setOf(sourceIndex), afterError = false)
+            }
+            .show()
+    }
+
+    /**
+     * Resolves [index] and swaps playback to it, falling through to the next untried source on
+     * failure. After a playback error with nothing left the player closes; after a manual pick the
+     * current source keeps playing.
+     */
+    private fun switchSource(index: Int?, tried: Set<Int>, afterError: Boolean) {
+        if (index == null) {
+            if (afterError) {
+                setResult(RESULT_PLAYBACK_FAILED)
+                finish()
+            } else {
+                Toast.makeText(this, R.string.source_none_loaded, Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+        val source = sources[index]
+        if (!afterError && tried.size == 1) {
+            Toast.makeText(this, getString(R.string.source_switching, source.label), Toast.LENGTH_SHORT).show()
+        }
+        sourceResolver?.cancel()
+        sourceResolver = StreamResolver(
+            this,
+            resolveHost,
+            source.streamUri,
+            source.iframeUrl.takeIf { it.startsWith("http") },
+        ) { stream ->
+            sourceResolver = null
+            if (isFinishing || isDestroyed) return@StreamResolver
+            if (stream != null) {
+                sourceIndex = index
+                resolvedStream = stream
+                player?.apply {
+                    setMediaSource(mediaSourceFor(stream))
+                    prepare()
+                    play()
+                }
+                return@StreamResolver
+            }
+            val nowTried = tried + index
+            val next = SourceQueue.next(sources.size, index, nowTried)
+            if (next != null) {
+                Toast.makeText(
+                    this,
+                    getString(R.string.source_failed_trying, source.label, sources[next].label),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            switchSource(next, nowTried, afterError)
+        }.also { it.start() }
     }
 
     private fun chatOverlayWidth(television: Boolean): Int {
@@ -260,9 +380,10 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun onControllerVisibilityChanged(visible: Boolean) {
-        val button = chatButton ?: return
-        if (!visible && button.hasFocus()) playerView.requestFocus()
-        button.visibility = if (visible) View.VISIBLE else View.GONE
+        for (button in listOfNotNull(sourcesButton, chatButton)) {
+            if (!visible && button.hasFocus()) playerView.requestFocus()
+            button.visibility = if (visible) View.VISIBLE else View.GONE
+        }
         chatOverlay?.animate()
             ?.translationY(if (visible) -CHAT_LIFT_DP * resources.displayMetrics.density else 0f)
             ?.setDuration(200L)
@@ -322,6 +443,8 @@ class PlayerActivity : AppCompatActivity() {
         }
         chatClient?.stop()
         chatClient = null
+        sourceResolver?.cancel()
+        sourceResolver = null
         player?.release()
         player = null
         super.onDestroy()

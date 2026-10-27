@@ -308,25 +308,39 @@ class MainActivity : AppCompatActivity() {
         }.also { it.start() }
     }
 
-    private fun playChannel(channel: ChannelListing) {
+    private fun playChannel(channel: ChannelListing) = playChannel(channel, sourceIndex = 0, tried = emptySet())
+
+    /** Resolves [sourceIndex] of the channel's sources, falling through to the next on failure. */
+    private fun playChannel(channel: ChannelListing, sourceIndex: Int, tried: Set<Int>) {
         if (resolver != null) return
         selected = channel
         autoRetried = false
         catalogView.setLoadingStream(channel.streamUri)
         catalogView.isEnabled = false
         status.visibility = android.view.View.GONE
-        val iframe = channel.playerIframeUrl.takeIf { it.startsWith("http") }
+        val source = channel.sources.getOrNull(sourceIndex)
+        val uri = source?.streamUri ?: channel.streamUri
+        val iframe = (source?.iframeUrl ?: channel.playerIframeUrl).takeIf { it.startsWith("http") }
         resolver = StreamResolver(
             this,
             resolveHost,
-            channel.streamUri,
+            uri,
             iframe,
             castMode = CastController.isConnected(),
         ) { stream ->
             resolver = null
             catalogView.setLoadingStream(null)
             catalogView.isEnabled = true
-            if (stream == null) {
+            val nowTried = tried + sourceIndex
+            val next = if (stream == null) SourceQueue.next(channel.sources.size, sourceIndex, nowTried) else null
+            if (stream == null && next != null) {
+                Toast.makeText(
+                    this,
+                    getString(R.string.source_failed_trying, source!!.label, channel.sources[next].label),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                playChannel(channel, next, nowTried)
+            } else if (stream == null) {
                 status.visibility = android.view.View.VISIBLE
                 status.text = "Couldn't start ${channel.title}. Try again."
             } else {
@@ -341,7 +355,10 @@ class MainActivity : AppCompatActivity() {
                     ).show()
                 } else {
                     @Suppress("DEPRECATION")
-                    startActivityForResult(PlayerActivity.intent(this, stream, channel.title, channel.streamId), REQUEST_PLAY)
+                    startActivityForResult(
+                        PlayerActivity.intent(this, stream, channel.title, channel.streamId, channel.sources, sourceIndex),
+                        REQUEST_PLAY,
+                    )
                 }
             }
         }.also { it.start() }

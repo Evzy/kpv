@@ -37,6 +37,10 @@
     <string name="unlock_code_hint">Unlock code</string>
     <string name="unlock_button">Unlock</string>
     <string name="unlock_wrong">That code doesn\'t match this device.</string>
+    <string name="sources">Sources</string>
+    <string name="source_failed_trying">%1$s didn\'t load, trying %2$s</string>
+    <string name="source_switching">Switching to %1$s…</string>
+    <string name="source_none_loaded">No other source loaded</string>
     <string name="chat_show">Show chat</string>
     <string name="chat_hide">Hide chat</string>
     <string name="cast_no_wifi">Connect to Wi‑Fi to cast.</string>

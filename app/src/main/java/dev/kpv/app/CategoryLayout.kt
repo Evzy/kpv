@@ -13,7 +13,7 @@ object CategoryLayout {
         val hidden: List<String> = emptyList(),
     )
 
-    enum class Kind { SPORT, LEAGUE }
+    enum class Kind { LIVE_NOW, SPORT, LEAGUE }
 
     data class EditorRow(
         val kind: Kind,
@@ -25,6 +25,9 @@ object CategoryLayout {
     )
 
     const val OTHER = "Other"
+    const val LIVE_NOW = "Live now"
+    /** Hidden-list key for Live now; cannot collide with a sport name from the catalog. */
+    const val LIVE_NOW_KEY = "\u0000live-now"
     private const val SEP = " › "
     private val DEFAULT_FIRST_LEAGUES = setOf("premier league")
 
@@ -58,8 +61,24 @@ object CategoryLayout {
             if (leagues.isEmpty()) null else Sport(s.name, leagues, showLeagues = leagues.size > 1)
         }
 
-    /** Customize list: every sport (hidden too), then its leagues when it has more than one. */
+    /** Prepends Live now: on-air events (not 24/7) from the visible [layout], unless hidden or empty. */
+    fun withLiveNow(layout: List<Sport>, prefs: Prefs): List<Sport> {
+        if (LIVE_NOW_KEY in prefs.hidden) return layout
+        val live = layout.asSequence()
+            .flatMap { it.leagues.asSequence() }
+            .flatMap { it.channels.asSequence() }
+            .filter { it.isLive && !it.alwaysLive }
+            .distinctBy { it.streamUri }
+            .toList()
+        if (live.isEmpty()) return layout
+        return listOf(Sport(LIVE_NOW, listOf(League(LIVE_NOW, live)))) + layout
+    }
+
+    /** Customize list: Live now, every sport (hidden too), then its leagues when it has more than one. */
     fun editorRows(sports: List<Sport>, prefs: Prefs): List<EditorRow> = buildList {
+        if (sports.isNotEmpty()) {
+            add(EditorRow(Kind.LIVE_NOW, LIVE_NOW, null, LIVE_NOW_KEY, LIVE_NOW, LIVE_NOW_KEY in prefs.hidden))
+        }
         for (s in orderAll(sports, prefs)) {
             add(EditorRow(Kind.SPORT, s.name, null, s.name, s.name, s.name in prefs.hidden))
             if (s.leagues.size < 2) continue

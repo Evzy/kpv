@@ -52,6 +52,7 @@ class CategoryLayoutTest {
         }
         assertEquals(
             listOf(
+                "live_now:Live now",
                 "sport:Darts",
                 "sport:Football",
                 "league:Premier League (hidden)",
