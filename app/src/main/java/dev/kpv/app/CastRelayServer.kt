@@ -27,9 +27,13 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
         private val idByUpstream = ConcurrentHashMap<String, String>()
         private val nextId = AtomicInteger(0)
         private val segmentCache = LinkedHashMap<String, Future<Segment>>()
+        private val windows = ConcurrentHashMap<String, CastHlsRelay.LiveWindow>()
 
         @Volatile
         var mediaPlaylistUrl: String? = null
+
+        fun window(playlistUrl: String): CastHlsRelay.LiveWindow =
+            windows.getOrPut(playlistUrl.substringBefore('?')) { CastHlsRelay.LiveWindow(WINDOW_SEGMENTS) }
 
         fun prefetch(url: String, load: () -> Segment): Future<Segment> = synchronized(segmentCache) {
             segmentCache[url]?.let { return it }
@@ -184,7 +188,8 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
 
     /**
      * Starts background downloads for every segment and only advertises segments that are already
-     * in memory, so the receiver never waits on the CDN when it requests one.
+     * in memory, so the receiver never waits on the CDN when it requests one. The advertised window
+     * keeps recent segments after upstream drops them (see [CastHlsRelay.LiveWindow]).
      */
     private fun servePlaylist(
         entry: RelaySession,
@@ -199,14 +204,21 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
             val futures = segmentUrls.map { url ->
                 entry.prefetch(url) { downloadSegment(url, entry.stream.headers) }
             }
-            val deadline = System.currentTimeMillis() + FIRST_SEGMENTS_WAIT_MS
-            futures.take(MIN_READY_SEGMENTS).forEach { future ->
-                val remaining = deadline - System.currentTimeMillis()
-                if (remaining > 0) runCatching { future.get(remaining, TimeUnit.MILLISECONDS) }
+            val window = entry.window(upstreamUrl)
+            if (window.isEmpty) {
+                val deadline = System.currentTimeMillis() + FIRST_SEGMENTS_WAIT_MS
+                futures.forEach { future ->
+                    val remaining = deadline - System.currentTimeMillis()
+                    if (remaining > 0) runCatching { future.get(remaining, TimeUnit.MILLISECONDS) }
+                }
             }
-            val ready = futures.indexOfFirst { !isReady(it) }.let { if (it < 0) futures.size else it }
-            if (ready > 0) served = CastHlsRelay.trimMediaPlaylist(text, ready)
-            Log.i(TAG, "playlist ready=$ready/${futures.size}")
+            val windowed = window.update(text, upstreamUrl) { url ->
+                entry.cached(url)?.let { isReady(it) } == true
+            }
+            if (!window.isEmpty) served = windowed
+            val listed = CastHlsRelay.mediaSegmentUrls(served, upstreamUrl).size
+            val ready = futures.count { isReady(it) }
+            Log.i(TAG, "playlist listed=$listed upstream=${futures.size} ready=$ready")
         }
         return playlistResponse(rewrite(entry, served, upstreamUrl, lanIp, token))
     }
@@ -478,8 +490,8 @@ class CastRelayServer private constructor(port: Int) : NanoHTTPD("0.0.0.0", port
         private const val HLS_MIME = "application/vnd.apple.mpegurl"
         private const val OCTET_MIME = "application/octet-stream"
         private const val TS_MIME = "video/mp2t"
-        private const val MAX_CACHED_SEGMENTS = 6
-        private const val MIN_READY_SEGMENTS = 2
+        private const val WINDOW_SEGMENTS = 7
+        private const val MAX_CACHED_SEGMENTS = 12
         private const val FIRST_SEGMENTS_WAIT_MS = 10_000L
         private const val SEGMENT_WAIT_MS = 20_000L
 

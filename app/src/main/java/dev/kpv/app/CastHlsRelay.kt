@@ -260,4 +260,101 @@ object CastHlsRelay {
         if (idx < 0) return url
         return url.substring(0, idx)
     }
+
+    /**
+     * Sliding live window advertised to the receiver. Upstream CDNs often list only ~16 s of
+     * segments; listing just the downloaded ones left Shaka with 8–12 s, too little to sit behind
+     * the live edge. This keeps already-advertised segments (by media sequence) after upstream drops
+     * them, up to [maxSegments], and only appends downloaded segments so the window stays contiguous.
+     */
+    class LiveWindow(private val maxSegments: Int) {
+
+        private class Entry(val sequence: Long, val tags: List<String>, val url: String)
+
+        private val entries = ArrayDeque<Entry>()
+
+        val isEmpty: Boolean get() = synchronized(this) { entries.isEmpty() }
+
+        /** Returns the playlist to serve, with absolute upstream segment URLs. */
+        fun update(body: String, upstreamPlaylistUrl: String, isReady: (String) -> Boolean): String =
+            synchronized(this) {
+                if (body.lines().any { it.trim().startsWith("#EXT-X-ENDLIST", ignoreCase = true) }) {
+                    return body
+                }
+                val parsed = parse(body, upstreamPlaylistUrl)
+                val incoming = parsed.segments
+                val last = entries.lastOrNull()
+                if (last != null && incoming.isNotEmpty()) {
+                    val restarted = incoming.first().sequence > last.sequence + 1 ||
+                        incoming.last().sequence < entries.first().sequence
+                    if (restarted) entries.clear()
+                }
+                val after = entries.lastOrNull()?.sequence ?: Long.MIN_VALUE
+                for (segment in incoming) {
+                    if (segment.sequence <= after) continue
+                    if (!isReady(segment.url)) break
+                    entries.addLast(segment)
+                }
+                while (entries.size > maxSegments) entries.removeFirst()
+                render(parsed.header)
+            }
+
+        private class Parsed(val header: List<String>, val segments: List<Entry>)
+
+        private fun parse(body: String, upstreamPlaylistUrl: String): Parsed {
+            val baseDir = playlistBaseDir(upstreamPlaylistUrl)
+            val header = mutableListOf<String>()
+            val segments = mutableListOf<Entry>()
+            var sequence = 0L
+            var pending = mutableListOf<String>()
+            var seenSegment = false
+            for (raw in body.lines()) {
+                val line = raw.trim()
+                if (line.isEmpty()) continue
+                when {
+                    line.startsWith("#EXT-X-MEDIA-SEQUENCE:", ignoreCase = true) ->
+                        sequence = line.substringAfter(':').trim().toLongOrNull() ?: 0L
+                    line.startsWith("#") && !seenSegment && !isSegmentTag(line) -> header.add(line)
+                    line.startsWith("#") -> pending.add(line)
+                    else -> {
+                        segments.add(Entry(sequence, pending, resolveAgainstBase(line, baseDir)))
+                        sequence++
+                        pending = mutableListOf()
+                        seenSegment = true
+                    }
+                }
+            }
+            return Parsed(header, segments)
+        }
+
+        private fun isSegmentTag(line: String): Boolean {
+            val tag = line.substringBefore(':').uppercase()
+            return tag in SEGMENT_TAGS
+        }
+
+        private fun render(header: List<String>): String = buildString {
+            header.forEach { appendLine(it) }
+            appendLine("#EXT-X-MEDIA-SEQUENCE:${entries.firstOrNull()?.sequence ?: 0}")
+            for (entry in entries) {
+                entry.tags.forEach { appendLine(it) }
+                appendLine(entry.url)
+            }
+        }
+
+        private companion object {
+            val SEGMENT_TAGS = setOf(
+                "#EXTINF",
+                "#EXT-X-PROGRAM-DATE-TIME",
+                "#EXT-X-DISCONTINUITY",
+                "#EXT-X-KEY",
+                "#EXT-X-BYTERANGE",
+                "#EXT-X-MAP",
+                "#EXT-X-GAP",
+                "#EXT-X-BITRATE",
+                "#EXT-X-CUE-OUT",
+                "#EXT-X-CUE-IN",
+                "#EXT-X-CUE-OUT-CONT",
+            )
+        }
+    }
 }
