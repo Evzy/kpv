@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.cast.framework.media.widget.MiniControllerFragment
 import dev.kpv.app.update.AppUpdateFlow
 import dev.kpv.app.unlock.AppUnlock
 import android.view.Gravity
@@ -152,6 +153,15 @@ class MainActivity : AppCompatActivity() {
                 0,
                 1f,
             ))
+            if (!TvHelper.isTelevision(this@MainActivity)) {
+                addView(
+                    FrameLayout(this@MainActivity).apply { id = R.id.cast_mini_controller },
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
+            }
         }
 
         root = FrameLayout(this).apply {
@@ -181,7 +191,10 @@ class MainActivity : AppCompatActivity() {
         catalogView.visibility = android.view.View.GONE
         if (!TvHelper.isTelevision(this)) {
             CastController.init(this, ContextCompat.getMainExecutor(this)) {
-                runOnUiThread { updateCastButtonVisibility() }
+                runOnUiThread {
+                    updateCastButtonVisibility()
+                    addMiniController()
+                }
             }
         }
         loadCatalog(initial = true)
@@ -193,13 +206,27 @@ class MainActivity : AppCompatActivity() {
     private var catalogReady = false
     private var shownCategories: List<StreamCategory> = emptyList()
 
+    private fun addMiniController() {
+        if (isFinishing || supportFragmentManager.isStateSaved) return
+        if (supportFragmentManager.findFragmentById(R.id.cast_mini_controller) != null) return
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.cast_mini_controller, MiniControllerFragment())
+            .commit()
+    }
+
     override fun onResume() {
         super.onResume()
+        CastPlayback.attachHost(this, resolveHost)
         updateFlow.onResume()
         if (catalogReady) {
             catalogView.refreshLayout()
             refreshScores()
         }
+    }
+
+    override fun onPause() {
+        CastPlayback.detachHost(this)
+        super.onPause()
     }
 
     private fun refreshScores() {
@@ -346,7 +373,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 status.visibility = android.view.View.GONE
                 if (CastController.isConnected() &&
-                    CastController.loadStream(this, stream, channel.title)
+                    CastPlayback.start(this, castItem(channel), sourceIndex, stream)
                 ) {
                     Toast.makeText(
                         this,
@@ -356,13 +383,21 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     @Suppress("DEPRECATION")
                     startActivityForResult(
-                        PlayerActivity.intent(this, stream, channel.title, channel.streamId, channel.sources, sourceIndex),
+                        PlayerActivity.intent(this, stream, castItem(channel), sourceIndex),
                         REQUEST_PLAY,
                     )
                 }
             }
         }.also { it.start() }
     }
+
+    private fun castItem(channel: ChannelListing) = CastPlayback.Item(
+        title = channel.title,
+        streamId = channel.streamId,
+        streamUri = channel.streamUri,
+        iframeUrl = channel.playerIframeUrl,
+        sources = channel.sources,
+    )
 
     private fun updateCastButtonVisibility() {
         castButton?.visibility =

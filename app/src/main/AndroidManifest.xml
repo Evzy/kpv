@@ -73,6 +73,12 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
             android:exported="false"
             android:theme="@style/Theme.Kpv.Player" />
+        <activity
+            android:name=".CastControlsActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Kpv.CastControls" />
 
         <service
             android:name=".CastRelayForegroundService"

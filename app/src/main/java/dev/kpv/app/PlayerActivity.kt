@@ -49,23 +49,26 @@ class PlayerActivity : AppCompatActivity() {
         private const val EXTRA_SOURCE_IFRAMES = "source_iframes"
         private const val EXTRA_SOURCE_INDEX = "source_index"
 
+        private const val EXTRA_STREAM_URI = "stream_uri"
+        private const val EXTRA_IFRAME_URL = "iframe_url"
+
         fun intent(
             context: Context,
             stream: ResolvedStream,
-            title: String = "KPV",
-            streamId: Long = 0L,
-            sources: List<StreamSource> = emptyList(),
+            channel: CastPlayback.Item,
             sourceIndex: Int = 0,
         ): Intent =
             Intent(context, PlayerActivity::class.java)
                 .putExtra(EXTRA_URL, stream.url)
                 .putExtra(EXTRA_HEADER_NAMES, stream.headers.keys.toTypedArray())
                 .putExtra(EXTRA_HEADER_VALUES, stream.headers.values.toTypedArray())
-                .putExtra(EXTRA_TITLE, title)
-                .putExtra(EXTRA_STREAM_ID, streamId)
-                .putExtra(EXTRA_SOURCE_LABELS, sources.map { it.label }.toTypedArray())
-                .putExtra(EXTRA_SOURCE_URIS, sources.map { it.streamUri }.toTypedArray())
-                .putExtra(EXTRA_SOURCE_IFRAMES, sources.map { it.iframeUrl }.toTypedArray())
+                .putExtra(EXTRA_TITLE, channel.title)
+                .putExtra(EXTRA_STREAM_ID, channel.streamId)
+                .putExtra(EXTRA_STREAM_URI, channel.streamUri)
+                .putExtra(EXTRA_IFRAME_URL, channel.iframeUrl)
+                .putExtra(EXTRA_SOURCE_LABELS, channel.sources.map { it.label }.toTypedArray())
+                .putExtra(EXTRA_SOURCE_URIS, channel.sources.map { it.streamUri }.toTypedArray())
+                .putExtra(EXTRA_SOURCE_IFRAMES, channel.sources.map { it.iframeUrl }.toTypedArray())
                 .putExtra(EXTRA_SOURCE_INDEX, sourceIndex)
     }
 
@@ -414,8 +417,16 @@ class PlayerActivity : AppCompatActivity() {
     private fun handOffToCastIfReady() {
         if (!playbackReady || !CastController.isConnected()) return
         player?.pause()
-        if (CastController.loadStream(this, resolvedStream, streamTitle)) {
+        val channel = CastPlayback.Item(
+            title = streamTitle,
+            streamId = streamId,
+            streamUri = intent.getStringExtra(EXTRA_STREAM_URI).orEmpty(),
+            iframeUrl = intent.getStringExtra(EXTRA_IFRAME_URL).orEmpty(),
+            sources = sources,
+        )
+        if (CastPlayback.start(this, channel, sourceIndex, resolvedStream)) {
             Toast.makeText(this, getString(R.string.cast_playing_on_tv, streamTitle), Toast.LENGTH_SHORT).show()
+            finish()
         }
     }
 

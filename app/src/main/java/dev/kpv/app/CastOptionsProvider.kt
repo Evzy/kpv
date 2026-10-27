@@ -14,10 +14,11 @@ class CastOptionsProvider : OptionsProvider {
         // The media session is what lets system media controls show the channel title instead of
         // the receiver's name ("Default Media Receiver").
         val notificationOptions = NotificationOptions.Builder()
-            .setTargetActivityClassName(MainActivity::class.java.name)
+            .setTargetActivityClassName(CastControlsActivity::class.java.name)
             .build()
         val mediaOptions = CastMediaOptions.Builder()
             .setNotificationOptions(notificationOptions)
+            .setExpandedControllerActivityClassName(CastControlsActivity::class.java.name)
             .setMediaSessionEnabled(true)
             .build()
         return CastOptions.Builder()

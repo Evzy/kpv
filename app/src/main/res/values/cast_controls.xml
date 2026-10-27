@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="cast_mini_controller" type="id" />
+
+    <!-- Slots either side of play/pause: Sources, empty | mute, Stop. -->
+    <array name="kpv_cast_expanded_buttons">
+        <item>@id/cast_button_type_custom</item>
+        <item>@id/cast_button_type_empty</item>
+        <item>@id/cast_button_type_mute_toggle</item>
+        <item>@id/cast_button_type_custom</item>
+    </array>
+</resources>

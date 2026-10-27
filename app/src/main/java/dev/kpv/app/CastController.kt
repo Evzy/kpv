@@ -11,6 +11,7 @@ import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.google.android.gms.tasks.Task
 import java.util.concurrent.Executor
 
@@ -38,6 +39,7 @@ object CastController {
         // change), so the relay outlives the session and is stopped by the idle watchdog instead.
         override fun onSessionEnded(session: CastSession, error: Int) {
             Log.i(TAG, "Cast session ended error=$error; relay kept until the TV goes idle")
+            CastPlayback.clear()
         }
         override fun onSessionResuming(session: CastSession, sessionId: String) = Unit
         override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) = Unit
@@ -68,6 +70,14 @@ object CastController {
 
     fun isConnected(): Boolean =
         castContext?.sessionManager?.currentCastSession?.isConnected == true
+
+    fun remoteMediaClient(): RemoteMediaClient? =
+        castContext?.sessionManager?.currentCastSession?.remoteMediaClient
+
+    /** Relay URL of the last stream sent to the TV. */
+    @Volatile
+    var loadedUrl: String? = null
+        private set
 
     fun loadStream(context: Context, stream: ResolvedStream, title: String): Boolean {
         val ip = LanAddress.primaryIpv4()
@@ -100,6 +110,7 @@ object CastController {
             Toast.makeText(context, R.string.cast_session_lost, Toast.LENGTH_LONG).show()
             return false
         }
+        loadedUrl = url
         client.load(MediaLoadRequestData.Builder().setMediaInfo(mediaInfo).build())
             .setResultCallback { result ->
                 if (!result.status.isSuccess) {
@@ -137,7 +148,9 @@ object CastController {
         override fun run() {
             if (activeToken == null) return
             val idleMs = System.currentTimeMillis() - CastRelayServer.lastRequestAtMs
-            if (idleMs >= RELAY_IDLE_TIMEOUT_MS) {
+            // A paused receiver stops fetching but still needs the relay when it resumes.
+            val paused = remoteMediaClient()?.isPaused == true
+            if (idleMs >= RELAY_IDLE_TIMEOUT_MS && !paused) {
                 Log.i(TAG, "TV idle for ${idleMs / 1000}s; stopping cast relay")
                 appContext?.let { shutdown(it) } ?: releaseRelay()
             } else {

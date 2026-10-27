@@ -48,6 +48,10 @@
     <string name="cast_session_lost">Cast session lost. Pick the device again.</string>
     <string name="cast_load_failed">Couldn\'t load stream on the TV.</string>
     <string name="cast_playing_on_tv">Playing on %1$s</string>
+    <string name="cast_reconnecting">%1$s dropped on the TV, reconnecting…</string>
+    <string name="cast_trying_source">Trying %1$s on the TV…</string>
+    <string name="cast_gave_up">Couldn\'t keep %1$s playing on the TV. Pick another stream.</string>
+    <string name="cast_stop">Stop casting</string>
     <string name="cast_relay_channel">Cast relay</string>
     <string name="cast_relay_channel_desc">Keeps the phone relay running while the TV plays a cast stream.</string>
     <string name="cast_relay_notification_title">Casting to TV</string>
