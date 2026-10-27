@@ -1,4 +1,4 @@
-/* global AvplayPlay, Site, StreamResolve, TizenPlay, TvKeys, PlaybackCache */
+/* global AvplayPlay, Site, StreamResolve, TizenPlay, TvKeys, PlaybackCache, StreamSources, WatchControls, ChatOverlay */
 (function watchPage() {
   function isBackKey(e) {
     if (typeof TvKeys !== "undefined" && TvKeys.isBack(e)) return true;
@@ -28,17 +28,37 @@
       uri: (params.get("uri") || stored.uri || "").trim(),
       title: (params.get("t") || stored.t || "Stream").trim(),
       mode: (params.get("mode") || stored.mode || "").trim(),
+      id: Number(stored.id) || 0,
+      sources: Array.isArray(stored.sources) ? stored.sources.filter((s) => s && s.uri) : [],
+      si: Number(stored.si) || 0,
     };
   }
 
   const payload = readPayload();
   const loading = document.getElementById("player-loading");
   const loadingText = document.getElementById("loading-text");
+  const sources = payload.sources.length > 1 ? payload.sources : [];
+  const LOST = "Stream lost.\nPress Play/OK to retry · Back for channels.";
 
   let paused = false;
   let recovering = false;
+  let switching = false;
+  let idle = false;
+  let si = payload.si < sources.length ? payload.si : 0;
+  /** Source indexes that failed since the last one played. */
+  let failed = new Set([si]);
   /** @type {object|null} */
   let lastResolved = null;
+  let chat = null;
+  let controls = null;
+
+  function sourceLabel(i) {
+    return sources[i] ? sources[i].label : "Source";
+  }
+
+  function toast(msg) {
+    if (controls) controls.toast(msg);
+  }
 
   function step(msg) {
     if (loadingText) loadingText.textContent = msg;
@@ -59,6 +79,8 @@
 
   function showIdleMessage(msg) {
     releasePlaybackForInput();
+    idle = true;
+    setPausedUi(false);
     step(msg);
   }
 
@@ -72,36 +94,38 @@
   }
 
   function exitWatch() {
+    if (chat) chat.stop();
     AvplayPlay.stop();
     window.location.href = "index.html";
   }
 
-  function onWatchKeyDown(e) {
-    if (isBackKey(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      exitWatch();
+  function setPausedUi(on) {
+    if (!controls) {
+      if (on) step("Paused — press Play to resume");
       return;
     }
-    if (typeof TvKeys === "undefined" || !TvKeys.isPlayPause(e)) return;
-    if (!AvplayPlay.isActive() && !paused) {
-      if (/retry|Stream lost|failed/i.test(loadingText ? loadingText.textContent : "")) {
-        e.preventDefault();
-        e.stopPropagation();
-        restartFromNetwork(false);
-      }
+    controls.setLabel("pause", on ? "Play" : "Pause");
+    controls.setSticky(on);
+    if (on) controls.show();
+  }
+
+  function togglePause() {
+    if (idle) {
+      failed = new Set([si]);
+      restartFromNetwork(false);
       return;
     }
-    e.preventDefault();
-    e.stopPropagation();
     if (!paused) {
       if (TizenPlay.pauseAvplay()) {
         paused = true;
-        step("Paused — press Play/OK again to restart stream");
+        setPausedUi(true);
       }
       return;
     }
     paused = false;
+    setPausedUi(false);
+    if (!controls) hideLoading();
+    if (AvplayPlay.resume()) return;
     step("Restarting stream…");
     if (AvplayPlay.restart()) {
       clearPlaybackHud();
@@ -109,6 +133,58 @@
       restartFromNetwork(false);
     }
   }
+
+  function openSourcePicker() {
+    controls.choose(
+      "Sources",
+      sources.map((s) => s.label),
+      si,
+      (i) => {
+        if (i !== si || idle) switchSource(i, new Set([si]), idle);
+      },
+    );
+  }
+
+  function toggleChat() {
+    const shown = chat.toggle();
+    controls.setLabel("chat", shown ? "Hide chat" : "Chat");
+  }
+
+  function setupControls() {
+    if (typeof WatchControls === "undefined") return;
+    const buttons = [
+      { id: "pause", label: "Pause", onSelect: togglePause },
+      { id: "stop", label: "Stop", onSelect: exitWatch },
+    ];
+    if (sources.length > 1) buttons.push({ id: "sources", label: "Sources", onSelect: openSourcePicker });
+    if (payload.id && typeof ChatOverlay !== "undefined") {
+      chat = ChatOverlay.create(payload.id);
+      buttons.push({ id: "chat", label: "Chat", onSelect: toggleChat });
+    }
+    controls = WatchControls.create(buttons);
+  }
+
+  function onWatchKeyDown(e) {
+    if (isBackKey(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (controls && controls.closePicker()) return;
+      exitWatch();
+      return;
+    }
+    if (typeof TvKeys !== "undefined" && TvKeys.isPlayPause(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      togglePause();
+      return;
+    }
+    if (controls && controls.handleKey(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  setupControls();
 
   document.addEventListener("keydown", onWatchKeyDown, true);
   window.addEventListener("keydown", onWatchKeyDown, true);
@@ -176,13 +252,118 @@
       },
     });
     if (result.engine === "avplay") {
+      failed = new Set([si]);
       clearPlaybackHud();
       document.body.focus();
     }
     return result;
   }
 
+  function persistSource() {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem("kpv_watch") || "{}");
+      stored.u = payload.embedUrl;
+      stored.hls = payload.hlsUrl;
+      stored.uri = payload.uri;
+      stored.si = si;
+      sessionStorage.setItem("kpv_watch", JSON.stringify(stored));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  /** Resolves source `i` and starts it in AVPlay; rejects without opening the Hls.js page. */
+  async function loadSource(i, fresh) {
+    const s = sources[i];
+    const resolved = await StreamResolve.resolveForWatch(
+      { uri: s.uri, hlsUrl: "", embedUrl: s.iframe || "" },
+      { skipCache: fresh, onStep() {} },
+    );
+    if (!resolved.hls.startsWith("http")) throw new Error("no stream");
+    try {
+      await TizenPlay.tryAvplay(
+        resolved.hls,
+        { referer: resolved.referer, embed: resolved.embed, title: payload.title },
+        { onPlaying: clearPlaybackHud, onPlaybackIssue: () => handleStreamFailure(true) },
+      );
+    } catch (e) {
+      if (resolved.fromCache && !fresh) {
+        PlaybackCache.clear(s.uri);
+        return loadSource(i, true);
+      }
+      throw e;
+    }
+    return resolved;
+  }
+
+  function adoptSource(i, resolved) {
+    const s = sources[i];
+    si = i;
+    failed = new Set([i]);
+    lastResolved = resolved;
+    idle = false;
+    paused = false;
+    setPausedUi(false);
+    payload.uri = s.uri;
+    payload.embedUrl = s.iframe || "";
+    payload.hlsUrl = resolved.hls;
+    persistSource();
+    clearPlaybackHud();
+    document.body.focus();
+  }
+
+  /**
+   * Tries source `index`, then any untried others. While a manual pick resolves the current
+   * source keeps playing; if nothing loads it is restored.
+   */
+  async function switchSource(index, tried, afterError, firstMsg) {
+    if (switching) return;
+    switching = true;
+    const restore = afterError ? null : lastResolved;
+    let i = index;
+    let msg = firstMsg || `Switching to ${sourceLabel(i)}…`;
+    while (i !== null) {
+      tried.add(i);
+      toast(msg);
+      if (afterError) step(msg);
+      try {
+        const resolved = await loadSource(i, false);
+        adoptSource(i, resolved);
+        switching = false;
+        toast(`Playing ${sourceLabel(i)}`);
+        return;
+      } catch (_) {
+        const next = StreamSources.next(sources.length, i, tried);
+        if (next !== null) msg = `${sourceLabel(i)} didn't load, trying ${sourceLabel(next)}`;
+        i = next;
+      }
+    }
+    switching = false;
+    if (restore) {
+      toast("No other source loaded");
+      if (AvplayPlay.isActive()) return;
+      try {
+        await startAvplay(restore);
+      } catch (e) {
+        showIdleMessage(LOST);
+      }
+      return;
+    }
+    toast("Stream lost");
+    showIdleMessage(LOST);
+  }
+
+  /** Moves on to the next untried source; false when there is none. */
+  async function failOver() {
+    if (!sources.length) return false;
+    const next = StreamSources.next(sources.length, si, failed);
+    if (next === null) return false;
+    await switchSource(next, failed, true, `${sourceLabel(si)} didn't load, trying ${sourceLabel(next)}`);
+    return true;
+  }
+
   async function resolveAndPlay(fresh) {
+    idle = false;
     if (fresh && payload.uri) {
       PlaybackCache.clear(payload.uri);
       step("Getting a fresh link…");
@@ -208,6 +389,7 @@
         openEmbedSniffer(resolved.embed);
         return;
       }
+      if (await failOver()) return;
       showIdleMessage(noStreamMessage(resolved));
       return;
     }
@@ -220,15 +402,31 @@
         await resolveAndPlay(true);
         return;
       }
+      if (await failOver()) return;
       showIdleMessage(`${e.message}\nPress Play/OK to retry · Back for channels.`);
     }
   }
 
   async function handleStreamFailure(fromAvplay) {
-    if (recovering) return;
+    if (recovering || switching) return;
     recovering = true;
     paused = false;
+    setPausedUi(false);
     AvplayPlay.stop();
+
+    if (sources.length) {
+      step("Stream lost — getting a new link…");
+      try {
+        adoptSource(si, await loadSource(si, true));
+        recovering = false;
+        return;
+      } catch (_) {
+        /* fall through to the next source */
+      }
+      recovering = false;
+      if (!(await failOver())) showIdleMessage(LOST);
+      return;
+    }
 
     if (canReresolve()) {
       PlaybackCache.clear(payload.uri);
@@ -253,7 +451,7 @@
       }
     }
 
-    showIdleMessage("Stream lost.\nPress Play/OK to retry · Back for channels.");
+    showIdleMessage(LOST);
     recovering = false;
   }
 

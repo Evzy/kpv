@@ -99,7 +99,7 @@ assert.equal(LiveScores.leaguePath("Darts"), "");
   const cat = { console };
   vm.createContext(cat);
   vm.runInContext(
-    `const Site = { noteEmbedFromUrl() {} };\n${src("stream-live.js")}\n${src("catalog.js")}\n` +
+    `const Site = { noteEmbedFromUrl() {} };\n${src("stream-live.js")}\n${src("stream-sources.js")}\n${src("catalog.js")}\n` +
       "globalThis.Catalog = Catalog;",
     cat,
   );

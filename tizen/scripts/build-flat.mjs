@@ -21,6 +21,7 @@ const jsOrder = [
   "stream-live.js",
   "fixture-line.js",
   "live-scores.js",
+  "stream-sources.js",
   "catalog.js",
   "category-prefs.js",
   "category-editor.js",
@@ -52,6 +53,9 @@ await cp(path.join(root, "js", "gasm-resolve.js"), path.join(root, "gasm-resolve
 await cp(path.join(root, "js", "tizen-play.js"), path.join(root, "tizen-play.js"));
 await cp(path.join(root, "js", "site.js"), path.join(root, "site.js"));
 await cp(path.join(root, "js", "tv-keys.js"), path.join(root, "tv-keys.js"));
+for (const name of ["stream-sources.js", "chat-overlay.js", "watch-controls.js"]) {
+  await cp(path.join(root, "js", name), path.join(root, name));
+}
 const hlsMin = path.join(root, "node_modules", "hls.js", "dist", "hls.min.js");
 try {
   await cp(hlsMin, path.join(root, "hls.min.js"));

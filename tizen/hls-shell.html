@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=1920, height=1080" />
   <title>KPV — Player</title>
+  <link rel="stylesheet" href="style.css" />
   <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
   <style>
     html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
@@ -20,6 +21,9 @@
     }
   </style>
   <script src="hls.min.js"></script>
+  <script src="tv-keys.js"></script>
+  <script src="watch-controls.js"></script>
+  <script src="chat-overlay.js"></script>
 </head>
 <body tabindex="0">
   <video id="v" autoplay playsinline></video>
@@ -34,19 +38,97 @@
       var msg = document.getElementById("msg");
       var hint = document.getElementById("hint");
 
+      var watch = {};
+      try {
+        watch = JSON.parse(sessionStorage.getItem("kpv_watch") || "{}");
+      } catch (e) {}
+      var sources = Array.isArray(watch.sources) && watch.sources.length > 1 ? watch.sources : [];
+      var si = Number(watch.si) || 0;
+      var chat = null;
+      var controls = null;
+
       function exit() {
+        if (chat) chat.stop();
         window.location.href = "index.html";
       }
 
-      function onBack(e) {
+      function togglePause() {
+        if (v.paused) {
+          v.play().catch(function () {});
+          controls && controls.setLabel("pause", "Pause");
+          controls && controls.setSticky(false);
+        } else {
+          v.pause();
+          if (controls) {
+            controls.setLabel("pause", "Play");
+            controls.setSticky(true);
+            controls.show();
+          }
+        }
+      }
+
+      function pickSource(i) {
+        if (i === si) return;
+        var s = sources[i];
+        watch.si = i;
+        watch.uri = s.uri;
+        watch.u = s.iframe || "";
+        watch.hls = "";
+        try {
+          sessionStorage.setItem("kpv_watch", JSON.stringify(watch));
+        } catch (e) {}
+        if (chat) chat.stop();
+        window.location.replace("watch.html");
+      }
+
+      if (typeof WatchControls !== "undefined") {
+        var buttons = [
+          { id: "pause", label: "Pause", onSelect: togglePause },
+          { id: "stop", label: "Stop", onSelect: exit },
+        ];
+        if (sources.length) {
+          buttons.push({
+            id: "sources",
+            label: "Sources",
+            onSelect: function () {
+              controls.choose("Sources", sources.map(function (s) { return s.label; }), si, pickSource);
+            },
+          });
+        }
+        if (Number(watch.id) && typeof ChatOverlay !== "undefined") {
+          chat = ChatOverlay.create(Number(watch.id));
+          buttons.push({
+            id: "chat",
+            label: "Chat",
+            onSelect: function () {
+              controls.setLabel("chat", chat.toggle() ? "Hide chat" : "Chat");
+            },
+          });
+        }
+        controls = WatchControls.create(buttons);
+      }
+
+      function onKey(e) {
         if (e.keyCode === 10009 || e.key === "Back" || e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
+          if (controls && controls.closePicker()) return;
           exit();
+          return;
+        }
+        if (typeof TvKeys !== "undefined" && TvKeys.isPlayPause(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+          togglePause();
+          return;
+        }
+        if (controls && controls.handleKey(e)) {
+          e.preventDefault();
+          e.stopPropagation();
         }
       }
-      document.addEventListener("keydown", onBack, true);
-      window.addEventListener("keydown", onBack, true);
+      document.addEventListener("keydown", onKey, true);
+      window.addEventListener("keydown", onKey, true);
       document.addEventListener("tizenhwkey", function (e) {
         if (e && e.keyName === "back") {
           e.preventDefault();
@@ -56,7 +138,7 @@
 
       try {
         if (window.tizen && tizen.tvinputdevice) {
-          ["Back", "Return"].forEach(function (k) {
+          ["Back", "Return", "MediaPlayPause", "MediaPlay", "MediaPause"].forEach(function (k) {
             try { tizen.tvinputdevice.registerKey(k); } catch (e) {}
           });
         }

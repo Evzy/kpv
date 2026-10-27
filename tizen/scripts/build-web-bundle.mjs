@@ -26,6 +26,9 @@ const bundleFiles = [
   "gasm-resolve.js",
   "tizen-play.js",
   "tv-keys.js",
+  "stream-sources.js",
+  "chat-overlay.js",
+  "watch-controls.js",
   "hls-shell.html",
   "hls.min.js",
 ];

@@ -61,6 +61,11 @@ const CategoryEditor = (() => {
       el.className = `cat-edit-row cat-edit-row--${r.kind}${r.hidden ? " cat-edit-row--hidden" : ""}`;
       if (r.kind === "reset") {
         el.innerHTML = '<button type="button" class="cat-edit-btn">Reset to default</button>';
+      } else if (r.kind === "live_now") {
+        el.innerHTML =
+          `<span class="cat-edit-label">${escapeHtml(r.label)}</span>` +
+          `<span class="cat-edit-state">${r.hidden ? "Hidden" : ""}</span>` +
+          `<button type="button" class="cat-edit-btn">${r.hidden ? "Show" : "Hide"}</button>`;
       } else {
         el.innerHTML =
           `<span class="cat-edit-label">${escapeHtml(r.label)}</span>` +
@@ -96,7 +101,7 @@ const CategoryEditor = (() => {
     if (overlap > 0) panel.scrollTop += overlap;
     const r = rows[rowIdx];
     if (r.kind === "reset") hint.textContent = "OK — back to the automatic order and show everything.";
-    else if (col === 0) hint.textContent = `OK — ${r.hidden ? "show" : "hide"} ${r.label}.`;
+    else if (col === 0 || r.kind === "live_now") hint.textContent = `OK — ${r.hidden ? "show" : "hide"} ${r.label}.`;
     else hint.textContent = `OK — move ${r.label} ${col === 1 ? "up" : "down"}.`;
   }
 
@@ -116,7 +121,7 @@ const CategoryEditor = (() => {
       refresh(r.key);
       return;
     }
-    const col = Math.min(wantCol, 2);
+    const col = r.kind === "live_now" ? 0 : Math.min(wantCol, 2);
     if (col === 0) {
       prefs = CategoryPrefs.toggleHidden(prefs, r.key);
     } else {

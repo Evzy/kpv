@@ -6,6 +6,8 @@ const CategoryPrefs = (() => {
   const SEP = " › ";
   const OTHER = "Other";
   const DEFAULT_FIRST_LEAGUES = ["premier league"];
+  const LIVE_NOW = "Live now";
+  const LIVE_NOW_KEY = "\u0000live-now";
 
   function leagueKey(sport, league) {
     return sport + SEP + league;
@@ -104,9 +106,30 @@ const CategoryPrefs = (() => {
     return out;
   }
 
-  /** Customize list: every sport (hidden too), then its leagues when it has more than one. */
+  /** Prepends "Live now": every live event (not 24/7 channels) in the visible layout, unless hidden. */
+  function withLiveNow(layout, prefs) {
+    if (isHidden(prefs, LIVE_NOW_KEY)) return layout;
+    const seen = new Set();
+    const live = [];
+    for (const s of layout) {
+      for (const l of s.leagues) {
+        for (const ch of l.channels) {
+          if (!ch.isLive || ch.alwaysLive || seen.has(ch.uri)) continue;
+          seen.add(ch.uri);
+          live.push(ch);
+        }
+      }
+    }
+    if (!live.length) return layout;
+    return [{ name: LIVE_NOW, leagues: [{ name: LIVE_NOW, channels: live }], showLeagues: false }].concat(layout);
+  }
+
+  /** Customize list: Live now, every sport (hidden too), then its leagues when it has more than one. */
   function editorRows(sports, prefs) {
     const rows = [];
+    if (sports.length) {
+      rows.push({ kind: "live_now", key: LIVE_NOW_KEY, label: LIVE_NOW, hidden: isHidden(prefs, LIVE_NOW_KEY) });
+    }
     for (const s of orderAll(sports, prefs)) {
       rows.push({ kind: "sport", sport: s.name, key: s.name, label: s.name, hidden: isHidden(prefs, s.name) });
       if (s.leagues.length < 2) continue;
@@ -175,6 +198,7 @@ const CategoryPrefs = (() => {
     reset,
     group,
     arrange,
+    withLiveNow,
     editorRows,
     moveSport,
     moveLeague,

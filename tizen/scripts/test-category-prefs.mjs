@@ -66,6 +66,7 @@ assert.deepEqual(names(sports[2].leagues), ["Other", "Cup"], "empty tag goes to 
 
   const rows = Array.from(P.editorRows(sports, prefs), (r) => `${r.kind}:${r.label}${r.hidden ? " (hidden)" : ""}`);
   assert.deepEqual(rows, [
+    "live_now:Live now",
     "sport:Darts",
     "sport:Football",
     "league:Premier League (hidden)",
@@ -91,6 +92,37 @@ assert.deepEqual(names(sports[2].leagues), ["Other", "Cup"], "empty tag goes to 
 {
   const allHidden = P.toggleHidden(P.toggleHidden(P.toggleHidden(P.empty(), "Football"), "Darts"), "Misc");
   assert.equal(P.arrange(sports, allHidden).length, 0);
+}
+
+{
+  const live = (title, tag, uri, alwaysLive = false) => ({ title, tag, uri, isLive: true, alwaysLive });
+  const liveCatalog = [
+    { name: "Basketball", channels: [live("Dal v Mia", "NBA", "nba/dal-mia"), ch("Later", "NBA")] },
+    { name: "24/7", channels: [live("News", "TV", "tv/news", true)] },
+    { name: "Football", channels: [live("Arsenal v Spurs", "Premier League", "epl/ars-tot")] },
+    { name: "Dupes", channels: [live("Dal v Mia again", "NBA", "nba/dal-mia")] },
+  ];
+  const liveSports = P.group(liveCatalog);
+  const titles = (layout) => Array.from(layout[0].leagues[0].channels, (c) => c.title);
+
+  let prefs = P.empty();
+  let layout = P.withLiveNow(P.arrange(liveSports, prefs), prefs);
+  assert.deepEqual(names(layout), ["Live now", "Basketball", "24/7", "Football", "Dupes"]);
+  assert.equal(layout[0].showLeagues, false);
+  assert.deepEqual(titles(layout), ["Dal v Mia", "Arsenal v Spurs"], "live events only, no 24/7, no duplicates");
+
+  prefs = P.toggleHidden(prefs, "Football");
+  layout = P.withLiveNow(P.arrange(liveSports, prefs), prefs);
+  assert.deepEqual(titles(layout), ["Dal v Mia"], "hidden categories stay out of Live now");
+
+  const liveKey = P.editorRows(liveSports, prefs)[0].key;
+  prefs = P.toggleHidden(prefs, liveKey);
+  assert.deepEqual(names(P.withLiveNow(P.arrange(liveSports, prefs), prefs)), ["Basketball", "24/7", "Dupes"]);
+  assert.equal(P.editorRows(liveSports, prefs)[0].hidden, true);
+
+  const quiet = P.arrange(P.group([{ name: "Darts", channels: [ch("Day 2", "Darts")] }]), P.empty());
+  assert.deepEqual(names(P.withLiveNow(quiet, P.empty())), ["Darts"], "no Live now when nothing is live");
+  assert.equal(P.editorRows([], P.empty()).length, 0, "no rows before the catalog loads");
 }
 
 {

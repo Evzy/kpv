@@ -96,7 +96,8 @@
     lastCategories = categories;
     const sports = CategoryPrefs.group(categories);
     CategoryPrefs.rememberKnown(sports);
-    const layout = CategoryPrefs.arrange(sports, CategoryPrefs.load());
+    const prefs = CategoryPrefs.load();
+    const layout = CategoryPrefs.withLiveNow(CategoryPrefs.arrange(sports, prefs), prefs);
     if (!layout.length) {
       setStatus("All categories are hidden. Settings → Customize categories to show them.");
       return;
@@ -136,7 +137,7 @@
     CatalogNav.focusFirst();
     LiveScores.lookup([...fixtureEls.keys()], nowSec).then((lines) => {
       lines.forEach((text, ch) => {
-        fixtureEls.get(ch).textContent = text;
+        for (const el of fixtureEls.get(ch)) el.textContent = text;
       });
     });
   }
@@ -157,7 +158,8 @@
         <div class="title">${escapeHtml(ch.title)}</div>
         <div class="fixture">${escapeHtml(FixtureLine.timeLine(ch, nowSec) || "")}</div>
         <div class="tag">${escapeHtml(ch.tag || "Live")}</div>`;
-      fixtureEls.set(ch, btn.querySelector(".fixture"));
+      if (!fixtureEls.has(ch)) fixtureEls.set(ch, []);
+      fixtureEls.get(ch).push(btn.querySelector(".fixture"));
       const img = btn.querySelector("img");
       if (img) {
         img.addEventListener("error", () => {

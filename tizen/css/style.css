@@ -848,3 +848,115 @@ body.avplay-active .player-loading-screen.hidden {
   text-shadow: 0 2px 12px rgba(0, 0, 0, 1);
   padding: 8px 16px;
 }
+
+.watch-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 40px;
+  background: rgba(10, 12, 18, 0.88);
+  z-index: 100010;
+}
+
+.watch-bar-btn {
+  min-width: 150px;
+  min-height: 60px;
+  padding: 0 28px;
+  border: 3px solid transparent;
+  border-radius: 30px;
+  background: #1a1f2b;
+  color: #e5e7eb;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.watch-bar-btn.is-focused {
+  border-color: #14b8a6;
+  background: #134e4a;
+  color: #fff;
+}
+
+.watch-picker {
+  position: fixed;
+  right: 64px;
+  top: 64px;
+  min-width: 480px;
+  max-height: 900px;
+  overflow: hidden;
+  padding: 20px 0;
+  border-radius: 20px;
+  background: rgba(10, 12, 18, 0.94);
+  z-index: 100011;
+}
+
+.watch-picker-title {
+  padding: 0 28px 12px;
+  color: #9ca3af;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.watch-picker-item {
+  padding: 14px 28px;
+  color: #e5e7eb;
+  font-size: 26px;
+}
+
+.watch-picker-item.is-focused {
+  background: #134e4a;
+  color: #fff;
+}
+
+.watch-toast {
+  position: fixed;
+  left: 50%;
+  top: 48px;
+  transform: translateX(-50%);
+  max-width: 1400px;
+  padding: 14px 28px;
+  border-radius: 28px;
+  background: rgba(10, 12, 18, 0.9);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+  z-index: 100012;
+}
+
+.chat-overlay {
+  position: fixed;
+  right: 32px;
+  bottom: 150px;
+  width: 32%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 100005;
+  pointer-events: none;
+}
+
+.chat-line {
+  max-width: 100%;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #f3f4f6;
+  font-size: 22px;
+  line-height: 1.3;
+  word-wrap: break-word;
+  transition: opacity 300ms;
+}
+
+.chat-line--gone {
+  opacity: 0;
+}
+
+.chat-name {
+  margin-right: 8px;
+  font-weight: 700;
+  color: #5eead4;
+}

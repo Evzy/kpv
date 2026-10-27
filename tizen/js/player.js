@@ -93,6 +93,9 @@ const Player = (() => {
       uri: channel.uri || "",
       t: channel.title || "Stream",
       mode: target.mode,
+      id: channel.id || 0,
+      sources: channel.sources || [],
+      si: 0,
     };
     try {
       sessionStorage.setItem("kpv_watch", JSON.stringify(pack));

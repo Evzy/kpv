@@ -1,4 +1,4 @@
-/* global Site, StreamLive */
+/* global Site, StreamLive, StreamSources */
 const Catalog = (() => {
   async function load() {
     for (const api of Site.apiCandidates()) {
@@ -43,6 +43,8 @@ const Catalog = (() => {
           startsAt: Number(s.starts_at) || 0,
           endsAt: Number(s.ends_at) || 0,
           alwaysLive: s.always_live === 1 || s.always_live === true,
+          id: Number(s.id) || 0,
+          sources: StreamSources.fromStream(s),
         });
       }
       if (channels.length) {
