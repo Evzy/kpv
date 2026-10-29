@@ -53,6 +53,12 @@
     <string name="source_failed_trying">%1$s didn\'t load, trying %2$s</string>
     <string name="source_switching">Switching to %1$s…</string>
     <string name="source_none_loaded">No other source loaded</string>
+    <string name="other_sites">Try other sites</string>
+    <string name="other_sites_searching">Looking on %1$s…</string>
+    <string name="other_sites_pick">Pick the match on %1$s</string>
+    <string name="other_sites_next">Next site</string>
+    <string name="other_sites_none">No other site has this match.</string>
+    <string name="other_sites_found">Found on %1$s</string>
     <string name="chat_show">Show chat</string>
     <string name="chat_hide">Hide chat</string>
     <string name="cast_no_wifi">Connect to Wi‑Fi to cast.</string>

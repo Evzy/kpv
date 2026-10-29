@@ -6,12 +6,14 @@ import android.util.TypedValue
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import dev.kpv.app.sites.SiteAdapters
+import dev.kpv.app.sites.SiteList
 import dev.kpv.app.update.AppUpdateFlow
 import dev.kpv.app.unlock.AppUnlock
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -35,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var catalogView: CatalogBrowseView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var status: TextView
+    private lateinit var otherSitesButton: Button
     private lateinit var settingsButton: ImageButton
     private var castButton: KpvMediaRouteButton? = null
 
@@ -42,6 +45,7 @@ class MainActivity : AppCompatActivity() {
     private var resolver: StreamResolver? = null
     private var selected: ChannelListing? = null
     private var loadingSources: ChannelListing? = null
+    private var otherSites: OtherSitesFallback? = null
     private var autoRetried = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         TvHelper.applyScreenOrientation(this)
         PhoneSystemBars.enableEdgeToEdge(this)
 
-        catalogView = CatalogBrowseView(this, ::playChannel)
+        catalogView = CatalogBrowseView(this) { channel -> playChannel(channel) }
         swipeRefresh = SwipeRefreshLayout(this).apply {
             setColorSchemeColors(ContextCompat.getColor(this@MainActivity, R.color.kpv_accent))
             setProgressBackgroundColorSchemeColor(
@@ -76,6 +80,23 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
             setPadding(dp(16), dp(8), dp(16), dp(8))
             text = "Loading channels…"
+        }
+        otherSitesButton = Button(this).apply {
+            text = getString(R.string.other_sites)
+            visibility = View.GONE
+            setOnClickListener { selected?.let { tryOtherSites(it) } }
+        }
+        val statusBar = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(status, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ))
+            addView(otherSitesButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(8) })
         }
         catalogView.onAllHidden = { allHidden ->
             if (allHidden) {
@@ -174,7 +195,7 @@ class MainActivity : AppCompatActivity() {
             ))
             addView(loaderHost, FrameLayout.LayoutParams(1, 1, Gravity.BOTTOM or Gravity.START))
             addView(resolveHost, FrameLayout.LayoutParams(1, 1, Gravity.BOTTOM or Gravity.END))
-            addView(status, FrameLayout.LayoutParams(
+            addView(statusBar, FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM,
@@ -336,8 +357,11 @@ class MainActivity : AppCompatActivity() {
         }.also { it.start() }
     }
 
-    private fun playChannel(channel: ChannelListing) {
+    private fun playChannel(channel: ChannelListing, retry: Boolean = false) {
         if (resolver != null || loadingSources != null) return
+        otherSites?.cancel()
+        otherSites = null
+        if (!retry) autoRetried = false
         if (channel.sourcesPage.isEmpty()) {
             resolveChannel(channel, sourceIndex = 0, tried = emptySet())
             return
@@ -346,6 +370,7 @@ class MainActivity : AppCompatActivity() {
         catalogView.setLoadingStream(channel.streamUri)
         catalogView.isEnabled = false
         status.visibility = View.GONE
+        otherSitesButton.visibility = View.GONE
         Thread {
             val ready = runCatching { SiteAdapters.withSources(channel) }.getOrNull()
             runOnUiThread {
@@ -366,16 +391,35 @@ class MainActivity : AppCompatActivity() {
         selected = channel
         status.visibility = View.VISIBLE
         status.text = message
+        otherSitesButton.visibility =
+            if (channel.siteIndex < SiteList.all().lastIndex) View.VISIBLE else View.GONE
+    }
+
+    private fun tryOtherSites(channel: ChannelListing) {
+        otherSites?.cancel()
+        otherSitesButton.visibility = View.GONE
+        otherSites = OtherSitesFallback(
+            this,
+            channel,
+            onPlay = { found ->
+                autoRetried = false
+                resolveChannel(found, sourceIndex = 0, tried = emptySet())
+            },
+            onStatus = { text ->
+                status.visibility = View.VISIBLE
+                status.text = text
+            },
+        ).also { it.start() }
     }
 
     /** Resolves [sourceIndex] of the channel's sources, falling through to the next on failure. */
     private fun resolveChannel(channel: ChannelListing, sourceIndex: Int, tried: Set<Int>) {
         if (resolver != null) return
         selected = channel
-        autoRetried = false
         catalogView.setLoadingStream(channel.streamUri)
         catalogView.isEnabled = false
         status.visibility = android.view.View.GONE
+        otherSitesButton.visibility = View.GONE
         val source = channel.sources.getOrNull(sourceIndex)
         val uri = source?.streamUri ?: channel.streamUri
         val iframe = (source?.iframeUrl ?: channel.playerIframeUrl).takeIf { it.startsWith("http") }
@@ -445,6 +489,9 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_SETTINGS) {
             if (resultCode == RESULT_OK) {
                 SiteConfig.reload()
+                otherSites?.cancel()
+                otherSites = null
+                otherSitesButton.visibility = View.GONE
                 loadCatalog(initial = true)
             }
             return
@@ -455,7 +502,7 @@ class MainActivity : AppCompatActivity() {
             autoRetried = true
             status.visibility = android.view.View.VISIBLE
             status.text = "Stream dropped, reconnecting…"
-            playChannel(channel)
+            playChannel(channel, retry = true)
             return
         }
         autoRetried = false
@@ -463,12 +510,14 @@ class MainActivity : AppCompatActivity() {
             showFailure(channel, "${channel.title} stopped. Pick another stream.")
         } else {
             status.visibility = android.view.View.GONE
+            otherSitesButton.visibility = View.GONE
         }
     }
 
     override fun onDestroy() {
         catalogLoader?.cancel()
         resolver?.cancel()
+        otherSites?.cancel()
         if (isFinishing) {
             CastController.onHostDestroyed(applicationContext)
         }
