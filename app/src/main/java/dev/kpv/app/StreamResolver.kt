@@ -40,6 +40,11 @@ class StreamResolver(
         private const val AUTOPLAY_JS = """
             (function() {
               try {
+                // The centre tap can land on a player's "copy link" button; keep it off the system clipboard.
+                if (navigator.clipboard) navigator.clipboard.writeText = function() { return Promise.resolve(); };
+                document.execCommand = function() { return false; };
+              } catch (e) {}
+              try {
                 document.querySelectorAll('video').forEach(function(v) {
                   v.muted = true;
                   if (v.play) { var p = v.play(); if (p && p.catch) p.catch(function() {}); }
@@ -48,7 +53,7 @@ class StreamResolver(
                   try { var j = window.jwplayer(); j.setMute && j.setMute(true); j.play && j.play(); } catch (e) {}
                 }
                 var selectors = ['.jw-display-icon-container', '.vjs-big-play-button', '.plyr__control--overlaid',
-                                 '[aria-label="Play"]', '.play-button', '#play'];
+                                 '.player-poster', '[aria-label="Play"]', '.play-button', '#play'];
                 for (var i = 0; i < selectors.length; i++) {
                   var el = document.querySelector(selectors[i]);
                   if (el) { el.click(); break; }
@@ -69,8 +74,7 @@ class StreamResolver(
     private val nudge = object : Runnable {
         override fun run() {
             val view = webView ?: return
-            view.evaluateJavascript(AUTOPLAY_JS, null)
-            tapCentre(view)
+            view.evaluateJavascript(AUTOPLAY_JS) { if (webView === view) tapCentre(view) }
             handler.postDelayed(this, NUDGE_INTERVAL_MS)
         }
     }
