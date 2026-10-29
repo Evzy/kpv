@@ -3,6 +3,7 @@ package dev.kpv.app
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Collections
 
@@ -34,6 +35,29 @@ class LiveScoresTest {
         assertEquals("soccer/eng.1", LiveScores.leaguePath("Premier League"))
         assertEquals("football/nfl", LiveScores.leaguePath(" nfl "))
         assertEquals("", LiveScores.leaguePath("Darts"))
+    }
+
+    @Test
+    fun sportTagsCheckEveryLeagueOfThatSport() {
+        assertEquals(listOf("baseball/mlb"), LiveScores.leaguePaths("Baseball"))
+        assertEquals(listOf("hockey/nhl"), LiveScores.leaguePaths("Hockey"))
+        assertTrue("basketball/nba" in LiveScores.leaguePaths("Basketball"))
+        assertTrue("soccer/eng.1" in LiveScores.leaguePaths("Soccer"))
+        assertEquals(listOf("soccer/eng.1"), LiveScores.leaguePaths("Premier League"))
+        assertEquals(emptyList<String>(), LiveScores.leaguePaths("Darts"))
+    }
+
+    @Test
+    fun sportTaggedEventGetsTheScoreFromWhicheverLeagueHasIt() {
+        val now = 1_792_715_910L
+        val categories = listOf(
+            StreamCategory(
+                "Football",
+                listOf(ChannelListing("New England Patriots at Chicago Bears", "Football", "e1", "", "", startsAt = now - 1_000L)),
+            ),
+        )
+        val lines = LiveScores.refresh(categories, now) { url -> if ("/football/nfl/" in url) fixture else null }
+        assertEquals(mapOf("e1" to "NE 0 – 3 CHI · 5:11 - 1st"), lines)
     }
 
     @Test

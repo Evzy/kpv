@@ -29,6 +29,21 @@ object LiveScores {
         "mls" to "soccer/usa.1",
         "liga mx" to "soccer/mex.1",
         "allsvenskan" to "soccer/swe.1",
+        "mlb" to "baseball/mlb",
+        "wnba" to "basketball/wnba",
+    )
+    /** Sites that tag by sport rather than league; every listed league is checked. */
+    private val SPORTS = mapOf(
+        "basketball" to listOf("basketball/nba", "basketball/wnba", "basketball/nbl"),
+        "hockey" to listOf("hockey/nhl"),
+        "ice hockey" to listOf("hockey/nhl"),
+        "baseball" to listOf("baseball/mlb"),
+        "american football" to listOf("football/nfl", "football/college-football"),
+        "football" to listOf("football/nfl", "football/college-football"),
+        "soccer" to listOf(
+            "soccer/eng.1", "soccer/esp.1", "soccer/ita.1", "soccer/ger.1", "soccer/fra.1",
+            "soccer/usa.1", "soccer/uefa.champions", "soccer/uefa.europa",
+        ),
     )
     private val NOISE = setOf("fc", "cf", "sc", "afc")
     private val ACCENTS = Regex("\\p{Mn}+")
@@ -40,6 +55,11 @@ object LiveScores {
         private set
 
     fun leaguePath(tag: String): String = LEAGUES[tag.trim().lowercase()].orEmpty()
+
+    fun leaguePaths(tag: String): List<String> {
+        val key = tag.trim().lowercase()
+        return LEAGUES[key]?.let(::listOf) ?: SPORTS[key].orEmpty()
+    }
 
     fun scoreboardUrl(path: String): String = "$BASE$path/scoreboard?limit=300"
 
@@ -55,8 +75,8 @@ object LiveScores {
         val byLeague = categories.asSequence()
             .flatMap { it.channels.asSequence() }
             .filter { FixtureLine.hasStarted(it, nowSec) && FixtureLine.splitTeams(it.title) != null }
-            .groupBy { leaguePath(it.tag) }
-            .filterKeys { it.isNotEmpty() }
+            .flatMap { channel -> leaguePaths(channel.tag).asSequence().map { it to channel } }
+            .groupBy({ it.first }, { it.second })
         val found = ConcurrentHashMap<String, String>()
         byLeague.map { (path, channels) ->
             Thread {
@@ -64,7 +84,7 @@ object LiveScores {
                     ?.let { runCatching { JSONObject(it).optJSONArray("events") }.getOrNull() }
                     ?: return@Thread
                 for (channel in channels) {
-                    scoreFor(channel.title, events)?.let { found[channel.streamUri] = FixtureLine.scoreLine(it) }
+                    scoreFor(channel.title, events)?.let { found.putIfAbsent(channel.streamUri, FixtureLine.scoreLine(it)) }
                 }
             }.apply { start() }
         }.forEach { it.join() }
