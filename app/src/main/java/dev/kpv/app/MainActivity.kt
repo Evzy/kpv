@@ -209,7 +209,7 @@ class MainActivity : AppCompatActivity() {
     private fun addMiniController() {
         if (isFinishing || supportFragmentManager.isStateSaved) return
         if (miniControllerHost.childCount > 0) return
-        layoutInflater.inflate(R.layout.cast_mini_controller, miniControllerHost, true)
+        layoutInflater.inflate(R.layout.kpv_cast_mini_controller, miniControllerHost, true)
     }
 
     override fun onResume() {
