@@ -86,6 +86,8 @@ class PlayerActivity : AppCompatActivity() {
     private var chatOn = false
     private var sources: List<StreamSource> = emptyList()
     private var sourceIndex = 0
+    /** Sources that failed since playback last reached READY, so error fallback stops after one round. */
+    private val failedSources = mutableSetOf<Int>()
     private var sourcesButton: ImageButton? = null
     private var sourceResolver: StreamResolver? = null
     private lateinit var resolveHost: FrameLayout
@@ -114,6 +116,7 @@ class PlayerActivity : AppCompatActivity() {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
                         playbackReady = true
+                        failedSources.clear()
                         castButton?.visibility = View.VISIBLE
                     }
                 }
@@ -124,7 +127,8 @@ class PlayerActivity : AppCompatActivity() {
                         prepare()
                     } else if (sources.size > 1) {
                         if (sourceResolver != null) return
-                        val next = SourceQueue.next(sources.size, sourceIndex, setOf(sourceIndex))
+                        failedSources += sourceIndex
+                        val next = SourceQueue.next(sources.size, sourceIndex, failedSources)
                         if (next != null) {
                             Toast.makeText(
                                 this@PlayerActivity,
@@ -132,7 +136,7 @@ class PlayerActivity : AppCompatActivity() {
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
-                        switchSource(next, setOf(sourceIndex), afterError = true)
+                        switchSource(next, failedSources.toSet(), afterError = true)
                     } else {
                         setResult(RESULT_PLAYBACK_FAILED)
                         finish()
@@ -349,6 +353,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 return@StreamResolver
             }
+            if (afterError) failedSources += index
             val nowTried = tried + index
             val next = SourceQueue.next(sources.size, index, nowTried)
             if (next != null) {

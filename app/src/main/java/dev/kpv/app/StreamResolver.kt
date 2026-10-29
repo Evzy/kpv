@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -35,6 +36,7 @@ class StreamResolver(
     companion object {
         private const val TIMEOUT_MS = 30_000L
         private const val NUDGE_INTERVAL_MS = 1_500L
+        private val IGNORED_SCRIPT_HEADERS = setOf("accept", "content-type", "range", "cache-control", "pragma")
         private val PLAYLIST_PATTERN = Regex("\\.m3u8(\\?|$)|[?&/]m3u8", RegexOption.IGNORE_CASE)
 
         private const val AUTOPLAY_JS = """
@@ -43,6 +45,17 @@ class StreamResolver(
                 // The centre tap can land on a player's "copy link" button; keep it off the system clipboard.
                 if (navigator.clipboard) navigator.clipboard.writeText = function() { return Promise.resolve(); };
                 document.execCommand = function() { return false; };
+              } catch (e) {}
+              try {
+                // WebView hides headers that page scripts add to XHRs (e.g. playlist tokens); report them.
+                if (window.KpvHeaders && !XMLHttpRequest.prototype.__kpvHooked) {
+                  var setHeader = XMLHttpRequest.prototype.setRequestHeader;
+                  XMLHttpRequest.prototype.setRequestHeader = function(name, value) {
+                    try { KpvHeaders.header(String(name), String(value)); } catch (e) {}
+                    return setHeader.apply(this, arguments);
+                  };
+                  XMLHttpRequest.prototype.__kpvHooked = true;
+                }
               } catch (e) {}
               try {
                 document.querySelectorAll('video').forEach(function(v) {
@@ -67,6 +80,14 @@ class StreamResolver(
     private var webView: WebView? = null
     private var embedHost: String? = null
     private var userAgent: String? = null
+    private val scriptHeaders = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    private inner class HeaderBridge {
+        @JavascriptInterface
+        fun header(name: String, value: String) {
+            if (name.lowercase() !in IGNORED_SCRIPT_HEADERS && scriptHeaders.size < 16) scriptHeaders[name] = value
+        }
+    }
     @Volatile private var finished = false
     @Volatile private var captured = false
 
@@ -138,6 +159,7 @@ class StreamResolver(
             settings.setSupportMultipleWindows(false)
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(view, true)
+        view.addJavascriptInterface(HeaderBridge(), "KpvHeaders")
         // shouldInterceptRequest runs off the main thread, where WebView methods throw.
         userAgent = view.settings.userAgentString
 
@@ -177,6 +199,9 @@ class StreamResolver(
 
     private fun buildHeaders(url: String, requestHeaders: Map<String, String>): Map<String, String> {
         val headers = requestHeaders.toMutableMap()
+        scriptHeaders.forEach { (name, value) ->
+            if (headers.keys.none { it.equals(name, true) }) headers[name] = value
+        }
         val referer = headers.entries.firstOrNull { it.key.equals("Referer", true) }?.value
             ?: "https://$embedHost/"
         headers["Referer"] = referer
