@@ -11,14 +11,14 @@ object ApiCatalogFetcher {
         val candidates = if (isTop) SiteConfig.apiCandidates() else SiteConfig.apiCandidatesFor(origin)
         for (apiBase in candidates) {
             val body = SiteHttp.openJsonGet(SiteConfig.streamsApiUrl(apiBase), referer = "$origin/") ?: continue
-            val categories = runCatching { parse(body, origin) }.getOrNull() ?: continue
+            val categories = runCatching { parse(body, origin, isTop) }.getOrNull() ?: continue
             if (isTop) SiteConfig.rememberApi(apiBase)
             return categories
         }
         return null
     }
 
-    private fun parse(body: String, origin: String): List<StreamCategory>? {
+    private fun parse(body: String, origin: String, isTop: Boolean): List<StreamCategory>? {
         val root = JSONObject(body)
         val nowSec = root.optLong("timestamp", System.currentTimeMillis() / 1000L)
         val blocks = root.optJSONArray("streams") ?: return null
@@ -34,7 +34,7 @@ object ApiCatalogFetcher {
                 val uri = stream.optString("uri_name")
                 if (uri.isBlank()) continue
                 val iframe = stream.optString("iframe")
-                if (iframe.startsWith("http")) {
+                if (isTop && iframe.startsWith("http")) {
                     SiteConfig.noteEmbedOriginFromPlayerUrl(iframe)
                 }
                 channels += ChannelListing(

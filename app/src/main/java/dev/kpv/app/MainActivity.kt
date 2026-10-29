@@ -41,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private var catalogLoader: CatalogLoader? = null
     private var resolver: StreamResolver? = null
     private var selected: ChannelListing? = null
+    private var loadingSources: ChannelListing? = null
     private var autoRetried = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -337,16 +338,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playChannel(channel: ChannelListing) {
-        if (resolver != null) return
+        if (resolver != null || loadingSources != null) return
         if (channel.sourcesPage.isEmpty()) {
             resolveChannel(channel, sourceIndex = 0, tried = emptySet())
             return
         }
+        loadingSources = channel
         catalogView.setLoadingStream(channel.streamUri)
         catalogView.isEnabled = false
+        status.visibility = View.GONE
         Thread {
-            val ready = SiteAdapters.withSources(channel)
+            val ready = runCatching { SiteAdapters.withSources(channel) }.getOrNull()
             runOnUiThread {
+                loadingSources = null
                 if (isFinishing) return@runOnUiThread
                 catalogView.setLoadingStream(null)
                 catalogView.isEnabled = true

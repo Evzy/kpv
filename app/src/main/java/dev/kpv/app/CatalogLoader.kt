@@ -9,8 +9,8 @@ import dev.kpv.app.sites.SiteKind
 import dev.kpv.app.sites.SiteList
 
 /**
- * Loads the channel catalog. Uses the site's streams API first (same data as the homepage),
- * with a slow homepage scrape only if the API fails.
+ * Loads the channel catalog from the top site with the parser chosen for its kind.
+ * API sites fall back to a slow homepage scrape if the API fails or hangs.
  */
 class CatalogLoader(
     private val context: Context,
