@@ -88,5 +88,6 @@ class EventPagesParserTest {
         assertTrue(catalog[0].channels[0].isLive)
         assertEquals(listOf("Soon E vs F"), catalog[1].channels.map { it.title })
         assertEquals((now + 3_600_000) / 1000, catalog[1].channels[0].startsAt)
+        assertEquals("$origin/a.html", catalog[0].channels[0].sourcesPage)
     }
 }

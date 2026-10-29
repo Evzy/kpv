@@ -6,6 +6,7 @@ import android.util.TypedValue
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.cast.framework.media.widget.MiniControllerFragment
+import dev.kpv.app.sites.SiteAdapters
 import dev.kpv.app.update.AppUpdateFlow
 import dev.kpv.app.unlock.AppUnlock
 import android.view.Gravity
@@ -335,10 +336,37 @@ class MainActivity : AppCompatActivity() {
         }.also { it.start() }
     }
 
-    private fun playChannel(channel: ChannelListing) = playChannel(channel, sourceIndex = 0, tried = emptySet())
+    private fun playChannel(channel: ChannelListing) {
+        if (resolver != null) return
+        if (channel.sourcesPage.isEmpty()) {
+            resolveChannel(channel, sourceIndex = 0, tried = emptySet())
+            return
+        }
+        catalogView.setLoadingStream(channel.streamUri)
+        catalogView.isEnabled = false
+        Thread {
+            val ready = SiteAdapters.withSources(channel)
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                catalogView.setLoadingStream(null)
+                catalogView.isEnabled = true
+                if (ready == null) {
+                    showFailure(channel, "Couldn't find a stream for ${channel.title}.")
+                } else {
+                    resolveChannel(ready, sourceIndex = 0, tried = emptySet())
+                }
+            }
+        }.start()
+    }
+
+    private fun showFailure(channel: ChannelListing, message: String) {
+        selected = channel
+        status.visibility = View.VISIBLE
+        status.text = message
+    }
 
     /** Resolves [sourceIndex] of the channel's sources, falling through to the next on failure. */
-    private fun playChannel(channel: ChannelListing, sourceIndex: Int, tried: Set<Int>) {
+    private fun resolveChannel(channel: ChannelListing, sourceIndex: Int, tried: Set<Int>) {
         if (resolver != null) return
         selected = channel
         autoRetried = false
@@ -366,10 +394,9 @@ class MainActivity : AppCompatActivity() {
                     getString(R.string.source_failed_trying, source!!.label, channel.sources[next].label),
                     Toast.LENGTH_SHORT,
                 ).show()
-                playChannel(channel, next, nowTried)
+                resolveChannel(channel, next, nowTried)
             } else if (stream == null) {
-                status.visibility = android.view.View.VISIBLE
-                status.text = "Couldn't start ${channel.title}. Try again."
+                showFailure(channel, "Couldn't start ${channel.title}. Try again.")
             } else {
                 status.visibility = android.view.View.GONE
                 if (CastController.isConnected() &&
@@ -430,8 +457,7 @@ class MainActivity : AppCompatActivity() {
         }
         autoRetried = false
         if (resultCode == PlayerActivity.RESULT_PLAYBACK_FAILED) {
-            status.visibility = android.view.View.VISIBLE
-            status.text = "${channel.title} stopped. Pick another stream."
+            showFailure(channel, "${channel.title} stopped. Pick another stream.")
         } else {
             status.visibility = android.view.View.GONE
         }

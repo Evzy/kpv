@@ -4,6 +4,9 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
+import dev.kpv.app.sites.SiteAdapters
+import dev.kpv.app.sites.SiteKind
+import dev.kpv.app.sites.SiteList
 
 /**
  * Loads the channel catalog. Uses the site's streams API first (same data as the homepage),
@@ -29,21 +32,25 @@ class CatalogLoader(
 
     fun start() {
         apiReturned = false
+        val top = SiteList.top()
+        val scrapeFallback = top?.kind == SiteKind.API
         Thread {
-            val categories = ApiCatalogFetcher.fetch()
+            val categories = top?.let { SiteAdapters.catalog(it) }
             apiReturned = true
             handler.removeCallbacks(homepageKick)
             handler.post {
                 if (finished) return@post
                 if (categories != null) {
                     finish(categories)
+                } else if (!scrapeFallback) {
+                    finish(null)
                 } else if (homepageLoader == null) {
                     startHomepageFallback()
                 }
             }
         }.start()
         // If the API hangs, still try the homepage (some sites only work via scrape).
-        handler.postDelayed(homepageKick, 10_000L)
+        if (scrapeFallback) handler.postDelayed(homepageKick, 10_000L)
         handler.postDelayed({ if (!finished) finish(null) }, 50_000L)
     }
 

@@ -84,6 +84,7 @@ object EventPagesParser {
         isLive = nowMs in event.startMs..event.endMs,
         startsAt = event.startMs / 1000,
         endsAt = event.endMs / 1000,
+        sourcesPage = event.pageUrl,
     )
 
     /** The `[...]` after `EVENTS_DATA =`, matched by bracket depth outside string literals. */

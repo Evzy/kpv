@@ -19,4 +19,8 @@ data class ChannelListing(
     val streamId: Long = 0L,
     /** Main source then alternatives; empty when the stream has only one. */
     val sources: List<StreamSource> = emptyList(),
+    /** Event page to read the sources from just before playing; empty when [sources] is complete. */
+    val sourcesPage: String = "",
+    /** Position in the site list of the site this came from. */
+    val siteIndex: Int = 0,
 )
