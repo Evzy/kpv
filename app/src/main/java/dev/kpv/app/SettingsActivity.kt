@@ -1,10 +1,9 @@
 package dev.kpv.app
 
+import android.net.Uri
 import android.os.Bundle
 import android.util.TypedValue
-import android.view.Gravity
 import android.view.KeyEvent
-import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -29,6 +28,7 @@ class SettingsActivity : AppCompatActivity() {
     private val updateFlow = AppUpdateFlow(this)
     private var startTopEntry = SiteList.top()
     private var checkingOrigin: String? = null
+    private var siteButtons: List<List<Button>> = emptyList()
 
     override fun onResume() {
         super.onResume()
@@ -99,12 +99,9 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun focusedSiteButton(): Pair<Int, Int>? {
-        val list = findViewById<LinearLayout>(R.id.site_list)
-        for (rowIndex in 0 until list.childCount) {
-            val row = list.getChildAt(rowIndex) as? ViewGroup ?: continue
-            for (childIndex in 0 until row.childCount) {
-                if (row.getChildAt(childIndex).isFocused) return rowIndex to childIndex - 1
-            }
+        siteButtons.forEachIndexed { row, buttons ->
+            val button = buttons.indexOfFirst { it.isFocused }
+            if (button >= 0) return row to button
         }
         return null
     }
@@ -113,22 +110,30 @@ class SettingsActivity : AppCompatActivity() {
         val list = findViewById<LinearLayout>(R.id.site_list)
         list.removeAllViews()
         val entries = SiteList.all()
-        var toFocus: View? = null
-        entries.forEachIndexed { index, entry ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(8), 0, dp(4))
+        siteButtons = entries.mapIndexed { index, entry ->
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundColor(ContextCompat.getColor(this@SettingsActivity, R.color.kpv_surface))
+                setPadding(dp(12), dp(10), dp(12), dp(6))
             }
-            val label = TextView(this).apply {
-                text = "${index + 1}. ${entry.origin}\n${kindLabel(entry.kind)}"
+            card.addView(TextView(this).apply {
+                text = "${index + 1}. ${Uri.parse(entry.origin).host ?: entry.origin}"
                 setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.kpv_text_primary))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            }
-            row.addView(label, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
+            })
+            card.addView(TextView(this).apply {
+                val kind = kindLabel(entry.kind)
+                text = if (index == 0) getString(R.string.site_kind_home, kind) else kind
+                setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.kpv_text_secondary))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            })
             val buttons = listOf(
-                smallButton("▲") { update(SiteListCodec.move(SiteList.all(), index, -1), index - 1, BUTTON_UP) },
-                smallButton("▼") { update(SiteListCodec.move(SiteList.all(), index, 1), index + 1, BUTTON_DOWN) },
+                smallButton("▲", getString(R.string.site_move_up)) {
+                    update(SiteListCodec.move(SiteList.all(), index, -1), index - 1, BUTTON_UP)
+                }.apply { isEnabled = index > 0 },
+                smallButton("▼", getString(R.string.site_move_down)) {
+                    update(SiteListCodec.move(SiteList.all(), index, 1), index + 1, BUTTON_DOWN)
+                }.apply { isEnabled = index < entries.lastIndex },
                 smallButton(getString(R.string.site_recheck)) { detectAndSave(entry.origin, fromInput = false) },
                 smallButton(getString(R.string.site_remove)) {
                     if (SiteList.all().size <= 1) {
@@ -138,13 +143,27 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 },
             )
-            buttons.forEach { row.addView(it) }
-            list.addView(row)
-            if (index == focusRow?.coerceAtMost(entries.lastIndex)) {
-                toFocus = buttons[focusButton.coerceIn(0, buttons.lastIndex)]
+            val buttonRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            buttons.forEach {
+                buttonRow.addView(it, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             }
+            card.addView(buttonRow, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(6) })
+            list.addView(card, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(10) })
+            buttons
         }
-        if (focusRow != null) (toFocus ?: findViewById<EditText>(R.id.site_origin)).requestFocus()
+        if (focusRow == null) return
+        val row = siteButtons.getOrNull(focusRow.coerceAtMost(siteButtons.lastIndex))
+        val target = row?.let { buttons ->
+            val preferred = focusButton.coerceIn(0, buttons.lastIndex)
+            (listOf(buttons[preferred]) + buttons).firstOrNull { it.isEnabled }
+        }
+        (target ?: findViewById<EditText>(R.id.site_origin)).requestFocus()
     }
 
     private fun addSite(raw: String) {
@@ -205,9 +224,13 @@ class SettingsActivity : AppCompatActivity() {
         },
     )
 
-    private fun smallButton(label: String, onClick: () -> Unit) = Button(this).apply {
+    private fun smallButton(label: String, description: String? = null, onClick: () -> Unit) = Button(this).apply {
         text = label
-        minWidth = dp(56)
+        contentDescription = description
+        minWidth = 0
+        minimumWidth = 0
+        setPadding(dp(4), paddingTop, dp(4), paddingBottom)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setOnClickListener { onClick() }
     }
 

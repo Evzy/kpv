@@ -16,6 +16,9 @@
     <string name="site_last">Keep at least one site.</string>
     <string name="site_kind_api">API</string>
     <string name="site_kind_event_pages">Event pages</string>
+    <string name="site_kind_home">%1$s · home screen</string>
+    <string name="site_move_up">Move up</string>
+    <string name="site_move_down">Move down</string>
     <string name="customize_categories">Customize categories</string>
     <string name="customize_categories_hint">Reorder or hide sports and leagues. Changes save automatically.</string>
     <string name="customize_categories_reset">Reset to default</string>
