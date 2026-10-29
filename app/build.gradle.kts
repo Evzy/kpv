@@ -115,6 +115,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation("com.caverock:androidsvg-aar:1.4")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
