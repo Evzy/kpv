@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MiniControllerFragment reads its buttons in onInflate, so it must come from a <fragment> tag. -->
+<fragment xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@id/kpv_cast_mini_controller"
+    android:name="com.google.android.gms.cast.framework.media.widget.MiniControllerFragment"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    tools:ignore="FragmentTagUsage" />

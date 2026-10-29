@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.gms.cast.framework.media.widget.MiniControllerFragment
 import dev.kpv.app.sites.SiteAdapters
 import dev.kpv.app.update.AppUpdateFlow
 import dev.kpv.app.unlock.AppUnlock
@@ -32,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var root: FrameLayout
     private lateinit var loaderHost: FrameLayout
     private lateinit var resolveHost: FrameLayout
+    private lateinit var miniControllerHost: FrameLayout
     private lateinit var catalogView: CatalogBrowseView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var status: TextView
@@ -157,7 +157,7 @@ class MainActivity : AppCompatActivity() {
             ))
             if (!TvHelper.isTelevision(this@MainActivity)) {
                 addView(
-                    FrameLayout(this@MainActivity).apply { id = R.id.cast_mini_controller },
+                    FrameLayout(this@MainActivity).also { miniControllerHost = it },
                     LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -210,15 +210,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun addMiniController() {
         if (isFinishing || supportFragmentManager.isStateSaved) return
-        if (supportFragmentManager.findFragmentById(R.id.cast_mini_controller) != null) return
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.cast_mini_controller, MiniControllerFragment())
-            .commit()
+        if (miniControllerHost.childCount > 0) return
+        layoutInflater.inflate(R.layout.kpv_cast_mini_controller, miniControllerHost, true)
     }
 
     override fun onResume() {
         super.onResume()
         CastPlayback.attachHost(this, resolveHost)
+        if (CastController.isReady()) addMiniController()
         updateFlow.onResume()
         if (catalogReady) {
             catalogView.refreshLayout()
