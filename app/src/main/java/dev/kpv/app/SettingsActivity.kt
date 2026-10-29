@@ -1,18 +1,24 @@
 package dev.kpv.app
 
 import android.os.Bundle
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.KeyEvent
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.updatePadding
 import dev.kpv.app.sites.SiteEntry
 import dev.kpv.app.sites.SiteKind
+import dev.kpv.app.sites.SiteKindDetector
 import dev.kpv.app.sites.SiteList
 import dev.kpv.app.sites.SiteListCodec
 import dev.kpv.app.update.AppUpdateFlow
@@ -20,6 +26,8 @@ import dev.kpv.app.update.AppUpdateFlow
 class SettingsActivity : AppCompatActivity() {
 
     private val updateFlow = AppUpdateFlow(this)
+    private val startTopEntry = SiteList.top()
+    private var checking = false
 
     override fun onResume() {
         super.onResume()
@@ -44,36 +52,7 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        val site = findViewById<EditText>(R.id.site_origin)
-        site.setText(SiteConfig.siteUrl())
-        site.setOnEditorActionListener { _, actionId, event ->
-            val action = actionId and EditorInfo.IME_MASK_ACTION
-            val enterKey =
-                event?.keyCode == KeyEvent.KEYCODE_ENTER &&
-                    event.action == KeyEvent.ACTION_DOWN
-            val imeDone =
-                action == EditorInfo.IME_ACTION_DONE ||
-                    action == EditorInfo.IME_ACTION_GO ||
-                    action == EditorInfo.IME_ACTION_SEND
-            if (imeDone || enterKey) {
-                saveSiteAndFinish()
-            } else {
-                false
-            }
-        }
-        site.setOnKeyListener { _, keyCode, event ->
-            if (
-                keyCode == KeyEvent.KEYCODE_ENTER &&
-                    event.action == KeyEvent.ACTION_DOWN &&
-                    site.isFocused
-            ) {
-                saveSiteAndFinish()
-            } else {
-                false
-            }
-        }
-
-        findViewById<Button>(R.id.save).setOnClickListener { saveSiteAndFinish() }
+        bindSites()
         findViewById<Button>(R.id.customize_categories).setOnClickListener {
             startActivity(android.content.Intent(this, CategoryEditorActivity::class.java))
         }
@@ -82,18 +61,107 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<Button>(R.id.check_updates).setOnClickListener { updateFlow.check(userInitiated = true) }
     }
 
-    private fun saveSiteAndFinish(): Boolean {
-        val site = findViewById<EditText>(R.id.site_origin)
-        val s = site.text.toString().trim()
-        if (s.isBlank()) {
-            Toast.makeText(this, R.string.settings_site_required, Toast.LENGTH_SHORT).show()
-            return false
+    private fun bindSites() {
+        val input = findViewById<EditText>(R.id.site_origin)
+        val add = findViewById<Button>(R.id.add_site)
+        add.setOnClickListener { addSite(input.text.toString()) }
+        input.setOnEditorActionListener { _, actionId, event ->
+            val done = (actionId and EditorInfo.IME_MASK_ACTION) in
+                setOf(EditorInfo.IME_ACTION_DONE, EditorInfo.IME_ACTION_GO, EditorInfo.IME_ACTION_SEND)
+            val enter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
+            if (done || enter) { addSite(input.text.toString()); true } else false
         }
-        val imm = getSystemService(InputMethodManager::class.java)
-        imm?.hideSoftInputFromWindow(site.windowToken, 0)
-        SiteList.save(SiteListCodec.add(SiteList.all(), SiteEntry(SiteListCodec.normalize(s), SiteKind.API)))
-        setResult(RESULT_OK)
-        finish()
-        return true
+        input.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN && input.isFocused) {
+                addSite(input.text.toString())
+                true
+            } else {
+                false
+            }
+        }
+        renderSites()
     }
+
+    private fun renderSites() {
+        val list = findViewById<LinearLayout>(R.id.site_list)
+        list.removeAllViews()
+        SiteList.all().forEachIndexed { index, entry ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(8), 0, dp(4))
+            }
+            val label = TextView(this).apply {
+                text = "${index + 1}. ${entry.origin}\n${kindLabel(entry.kind)}"
+                setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.kpv_text_primary))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            }
+            row.addView(label, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            row.addView(smallButton("▲") { update(SiteListCodec.move(SiteList.all(), index, -1)) })
+            row.addView(smallButton("▼") { update(SiteListCodec.move(SiteList.all(), index, 1)) })
+            row.addView(smallButton(getString(R.string.site_recheck)) { detectAndSave(entry.origin) })
+            row.addView(smallButton(getString(R.string.site_remove)) {
+                if (SiteList.all().size <= 1) {
+                    Toast.makeText(this, R.string.site_last, Toast.LENGTH_SHORT).show()
+                } else {
+                    update(SiteListCodec.remove(SiteList.all(), index))
+                }
+            })
+            list.addView(row)
+        }
+    }
+
+    private fun addSite(raw: String) {
+        val origin = SiteListCodec.normalize(raw)
+        if (origin.isEmpty()) {
+            Toast.makeText(this, R.string.settings_site_required, Toast.LENGTH_SHORT).show()
+            return
+        }
+        getSystemService(InputMethodManager::class.java)
+            ?.hideSoftInputFromWindow(findViewById<EditText>(R.id.site_origin).windowToken, 0)
+        detectAndSave(origin)
+    }
+
+    private fun detectAndSave(origin: String) {
+        if (checking) return
+        checking = true
+        Toast.makeText(this, getString(R.string.site_checking, origin), Toast.LENGTH_SHORT).show()
+        Thread {
+            val kind = SiteKindDetector.detect(origin)
+            runOnUiThread {
+                checking = false
+                if (isFinishing) return@runOnUiThread
+                if (kind == null) {
+                    Toast.makeText(this, getString(R.string.site_unrecognised, origin), Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+                update(SiteListCodec.add(SiteList.all(), SiteEntry(origin, kind)))
+                findViewById<EditText>(R.id.site_origin).setText("")
+                Toast.makeText(this, getString(R.string.site_added, origin, kindLabel(kind)), Toast.LENGTH_SHORT).show()
+            }
+        }.start()
+    }
+
+    private fun update(list: List<SiteEntry>) {
+        if (list == SiteList.all()) return
+        SiteList.save(list)
+        // A re-check can change the top site's parser without changing its address.
+        setResult(if (SiteList.top() != startTopEntry) RESULT_OK else RESULT_CANCELED)
+        renderSites()
+    }
+
+    private fun kindLabel(kind: SiteKind) = getString(
+        when (kind) {
+            SiteKind.API -> R.string.site_kind_api
+            SiteKind.EVENT_PAGES -> R.string.site_kind_event_pages
+        },
+    )
+
+    private fun smallButton(label: String, onClick: () -> Unit) = Button(this).apply {
+        text = label
+        minWidth = dp(56)
+        setOnClickListener { onClick() }
+    }
+
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 }

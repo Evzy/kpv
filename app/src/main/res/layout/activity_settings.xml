@@ -24,15 +24,22 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:labelFor="@+id/site_origin"
-            android:text="@string/site_origin"
-            android:textColor="@color/kpv_text_primary"
+            android:paddingBottom="12dp"
+            android:text="@string/sites_hint"
+            android:textColor="@color/kpv_text_secondary"
             android:textSize="14sp" />
+
+        <LinearLayout
+            android:id="@+id/site_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
 
         <EditText
             android:id="@+id/site_origin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:autofillHints=""
             android:hint="@string/hint_site"
             android:imeOptions="actionDone|flagNoEnterAction|flagNoFullscreen"
@@ -44,11 +51,11 @@
             android:textColorHint="@color/kpv_text_secondary" />
 
         <Button
-            android:id="@+id/save"
+            android:id="@+id/add_site"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/save_and_reload" />
+            android:layout_marginTop="8dp"
+            android:text="@string/site_add" />
 
         <Button
             android:id="@+id/customize_categories"
