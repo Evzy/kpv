@@ -27,10 +27,17 @@ for the whole catalog.
   in shared prefs as JSON. Migration: an existing `site_origin` becomes the only entry, kind API.
   `SiteConfig` keeps per-site resolved API/embed origins and allowed hosts keyed by origin;
   `isAllowedHost` accepts hosts of every listed site plus learned embed hosts.
-- **`SiteKindDetector`**: on add, try the API type first: `{origin}/api/streams` (or the `api.`
-  subdomain) returns streams JSON with at least one stream → API. Otherwise fetch the homepage and
-  run the event-pages parser; at least one event → Event pages. Otherwise "Not a site KPV
-  recognises" and the site isn't added.
+- **`SiteKindDetector`**: when a site is added, every parser is tried against it and the one that
+  works best is saved on that site's entry (its `kind`); playback and fallback then always use it.
+  - Each parser returns a probe result: events found, how many are live or upcoming, and whether
+    a sample event yields at least one source (API: a stream with an `iframe` or `substreams`;
+    Event pages: the first live/upcoming event's page has a feed button or embed iframe).
+  - Score = 0 when nothing parses; otherwise live/upcoming events, plus a large bonus when the
+    sample has sources. Highest score wins; ties go to API (richer data: sources, chat, scores).
+  - All parsers score 0 → "Not a site KPV recognises" and the site isn't added.
+  - The settings row shows the chosen parser and has a **Re-check** button that reruns detection
+    (for when a site changes layout).
+  - Adding a parser later means adding one probe; the detector needs no other change.
 - **`SiteAdapter`** interface:
   - `loadCatalog(host): List<StreamCategory>?` — what the home screen shows (top site only).
   - `listEvents(): List<SiteEvent>` — lightweight `{title, startsAt, category, ref}` for matching.
