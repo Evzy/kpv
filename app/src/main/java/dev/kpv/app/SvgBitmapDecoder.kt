@@ -42,10 +42,9 @@ class SvgBitmapDecoder(private val pool: BitmapPool) : ResourceDecoder<InputStre
         val bitmapHeight = (docHeight * scale).roundToInt().coerceIn(1, MAX_SIDE)
         val bitmap = pool.get(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
         bitmap.eraseColor(0)
-        svg.renderToCanvas(
-            Canvas(bitmap),
-            RenderOptions.create().viewPort(0f, 0f, bitmapWidth.toFloat(), bitmapHeight.toFloat()),
-        )
+        val canvas = Canvas(bitmap)
+        canvas.scale(bitmapWidth / docWidth, bitmapHeight / docHeight)
+        svg.renderToCanvas(canvas, RenderOptions.create().viewPort(0f, 0f, docWidth, docHeight))
         return BitmapResource.obtain(bitmap, pool)
     }
 
