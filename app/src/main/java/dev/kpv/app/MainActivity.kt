@@ -215,6 +215,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         CastPlayback.attachHost(this, resolveHost)
+        if (CastController.isReady()) addMiniController()
         updateFlow.onResume()
         if (catalogReady) {
             catalogView.refreshLayout()

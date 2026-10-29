@@ -68,6 +68,8 @@ object CastController {
         }
     }
 
+    fun isReady(): Boolean = castContext != null
+
     fun isConnected(): Boolean =
         castContext?.sessionManager?.currentCastSession?.isConnected == true
 
