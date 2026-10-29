@@ -11,6 +11,7 @@
     <string name="site_unrecognised">%1$s isn\'t a site KPV can read.</string>
     <string name="site_added">Added %1$s (%2$s)</string>
     <string name="site_recheck">Re-check</string>
+    <string name="site_rechecked">%1$s: %2$s</string>
     <string name="site_remove">Remove</string>
     <string name="site_last">Keep at least one site.</string>
     <string name="site_kind_api">API</string>

@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -26,16 +27,32 @@ import dev.kpv.app.update.AppUpdateFlow
 class SettingsActivity : AppCompatActivity() {
 
     private val updateFlow = AppUpdateFlow(this)
-    private val startTopEntry = SiteList.top()
-    private var checking = false
+    private var startTopEntry = SiteList.top()
+    private var checkingOrigin: String? = null
 
     override fun onResume() {
         super.onResume()
         updateFlow.onResume()
+        val focused = focusedSiteButton()
+        renderSites(focused?.first, focused?.second ?: 0)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_START_TOP, SiteListCodec.encode(listOfNotNull(startTopEntry)))
+    }
+
+    override fun finish() {
+        // A re-check can change the top site's parser without changing its address.
+        setResult(if (SiteList.top() != startTopEntry) RESULT_OK else RESULT_CANCELED)
+        super.finish()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        savedInstanceState?.getString(KEY_START_TOP)?.let {
+            startTopEntry = SiteListCodec.decode(it).firstOrNull()
+        }
         TvHelper.applyScreenOrientation(this)
         PhoneSystemBars.enableEdgeToEdge(this)
         setContentView(R.layout.activity_settings)
@@ -79,13 +96,25 @@ class SettingsActivity : AppCompatActivity() {
                 false
             }
         }
-        renderSites()
     }
 
-    private fun renderSites() {
+    private fun focusedSiteButton(): Pair<Int, Int>? {
+        val list = findViewById<LinearLayout>(R.id.site_list)
+        for (rowIndex in 0 until list.childCount) {
+            val row = list.getChildAt(rowIndex) as? ViewGroup ?: continue
+            for (childIndex in 0 until row.childCount) {
+                if (row.getChildAt(childIndex).isFocused) return rowIndex to childIndex - 1
+            }
+        }
+        return null
+    }
+
+    private fun renderSites(focusRow: Int? = null, focusButton: Int = 0) {
         val list = findViewById<LinearLayout>(R.id.site_list)
         list.removeAllViews()
-        SiteList.all().forEachIndexed { index, entry ->
+        val entries = SiteList.all()
+        var toFocus: View? = null
+        entries.forEachIndexed { index, entry ->
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -97,18 +126,25 @@ class SettingsActivity : AppCompatActivity() {
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             }
             row.addView(label, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            row.addView(smallButton("▲") { update(SiteListCodec.move(SiteList.all(), index, -1)) })
-            row.addView(smallButton("▼") { update(SiteListCodec.move(SiteList.all(), index, 1)) })
-            row.addView(smallButton(getString(R.string.site_recheck)) { detectAndSave(entry.origin) })
-            row.addView(smallButton(getString(R.string.site_remove)) {
-                if (SiteList.all().size <= 1) {
-                    Toast.makeText(this, R.string.site_last, Toast.LENGTH_SHORT).show()
-                } else {
-                    update(SiteListCodec.remove(SiteList.all(), index))
-                }
-            })
+            val buttons = listOf(
+                smallButton("▲") { update(SiteListCodec.move(SiteList.all(), index, -1), index - 1, BUTTON_UP) },
+                smallButton("▼") { update(SiteListCodec.move(SiteList.all(), index, 1), index + 1, BUTTON_DOWN) },
+                smallButton(getString(R.string.site_recheck)) { detectAndSave(entry.origin, fromInput = false) },
+                smallButton(getString(R.string.site_remove)) {
+                    if (SiteList.all().size <= 1) {
+                        Toast.makeText(this, R.string.site_last, Toast.LENGTH_SHORT).show()
+                    } else {
+                        update(SiteListCodec.remove(SiteList.all(), index), index, BUTTON_REMOVE)
+                    }
+                },
+            )
+            buttons.forEach { row.addView(it) }
             list.addView(row)
+            if (index == focusRow?.coerceAtMost(entries.lastIndex)) {
+                toFocus = buttons[focusButton.coerceIn(0, buttons.lastIndex)]
+            }
         }
+        if (focusRow != null) (toFocus ?: findViewById<EditText>(R.id.site_origin)).requestFocus()
     }
 
     private fun addSite(raw: String) {
@@ -119,35 +155,47 @@ class SettingsActivity : AppCompatActivity() {
         }
         getSystemService(InputMethodManager::class.java)
             ?.hideSoftInputFromWindow(findViewById<EditText>(R.id.site_origin).windowToken, 0)
-        detectAndSave(origin)
+        detectAndSave(origin, fromInput = true)
     }
 
-    private fun detectAndSave(origin: String) {
-        if (checking) return
-        checking = true
+    private fun detectAndSave(origin: String, fromInput: Boolean) {
+        checkingOrigin?.let {
+            Toast.makeText(this, getString(R.string.site_checking, it), Toast.LENGTH_SHORT).show()
+            return
+        }
+        checkingOrigin = origin
+        val add = findViewById<Button>(R.id.add_site)
+        val addHadFocus = add.isFocused
+        add.isEnabled = false
         Toast.makeText(this, getString(R.string.site_checking, origin), Toast.LENGTH_SHORT).show()
         Thread {
-            val kind = SiteKindDetector.detect(origin)
+            val kind = runCatching { SiteKindDetector.detect(origin) }.getOrNull()
             runOnUiThread {
-                checking = false
-                if (isFinishing) return@runOnUiThread
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                checkingOrigin = null
+                add.isEnabled = true
+                if (addHadFocus) add.requestFocus()
                 if (kind == null) {
                     Toast.makeText(this, getString(R.string.site_unrecognised, origin), Toast.LENGTH_LONG).show()
                     return@runOnUiThread
                 }
-                update(SiteListCodec.add(SiteList.all(), SiteEntry(origin, kind)))
-                findViewById<EditText>(R.id.site_origin).setText("")
-                Toast.makeText(this, getString(R.string.site_added, origin, kindLabel(kind)), Toast.LENGTH_SHORT).show()
+                val next = SiteListCodec.add(SiteList.all(), SiteEntry(origin, kind))
+                if (fromInput) {
+                    update(next)
+                    findViewById<EditText>(R.id.site_origin).setText("")
+                    Toast.makeText(this, getString(R.string.site_added, origin, kindLabel(kind)), Toast.LENGTH_SHORT).show()
+                } else {
+                    update(next, next.indexOfFirst { it.origin == origin }, BUTTON_RECHECK)
+                    Toast.makeText(this, getString(R.string.site_rechecked, origin, kindLabel(kind)), Toast.LENGTH_SHORT).show()
+                }
             }
         }.start()
     }
 
-    private fun update(list: List<SiteEntry>) {
+    private fun update(list: List<SiteEntry>, focusRow: Int? = null, focusButton: Int = 0) {
         if (list == SiteList.all()) return
         SiteList.save(list)
-        // A re-check can change the top site's parser without changing its address.
-        setResult(if (SiteList.top() != startTopEntry) RESULT_OK else RESULT_CANCELED)
-        renderSites()
+        renderSites(focusRow, focusButton)
     }
 
     private fun kindLabel(kind: SiteKind) = getString(
@@ -164,4 +212,12 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    private companion object {
+        const val KEY_START_TOP = "start_top_entry"
+        const val BUTTON_UP = 0
+        const val BUTTON_DOWN = 1
+        const val BUTTON_RECHECK = 2
+        const val BUTTON_REMOVE = 3
+    }
 }
