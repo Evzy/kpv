@@ -11,6 +11,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updatePadding
+import dev.kpv.app.sites.SiteEntry
+import dev.kpv.app.sites.SiteKind
+import dev.kpv.app.sites.SiteList
+import dev.kpv.app.sites.SiteListCodec
 import dev.kpv.app.update.AppUpdateFlow
 
 class SettingsActivity : AppCompatActivity() {
@@ -87,7 +91,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         val imm = getSystemService(InputMethodManager::class.java)
         imm?.hideSoftInputFromWindow(site.windowToken, 0)
-        SiteConfig.saveSite(s)
+        SiteList.save(SiteListCodec.add(SiteList.all(), SiteEntry(SiteListCodec.normalize(s), SiteKind.API)))
         setResult(RESULT_OK)
         finish()
         return true

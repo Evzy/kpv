@@ -168,7 +168,7 @@ class StreamResolver(
         // Keep the view tiny so it never covers the settings bar or catalog touches.
         container.addView(view, FrameLayout.LayoutParams(320, 240))
         webView = view
-        view.loadUrl(embedUrl, mapOf("Referer" to SiteConfig.siteReferer))
+        view.loadUrl(embedUrl, mapOf("Referer" to SiteConfig.refererFor(embedUrl)))
     }
 
     private fun buildHeaders(url: String, requestHeaders: Map<String, String>): Map<String, String> {

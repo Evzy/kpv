@@ -5,18 +5,20 @@ import org.json.JSONObject
 /** Catalog via `{api}/api/streams`, trying likely API hosts for the configured site. */
 object ApiCatalogFetcher {
 
-    fun fetch(): List<StreamCategory>? {
-        SiteConfig.beginCatalogFetch()
-        for (apiBase in SiteConfig.apiCandidates()) {
-            val body = SiteHttp.openJsonGet(SiteConfig.streamsApiUrl(apiBase)) ?: continue
-            val categories = parse(body) ?: continue
-            SiteConfig.rememberApi(apiBase)
+    fun fetch(origin: String = SiteConfig.siteUrl()): List<StreamCategory>? {
+        val isTop = origin == SiteConfig.siteUrl()
+        if (isTop) SiteConfig.beginCatalogFetch()
+        val candidates = if (isTop) SiteConfig.apiCandidates() else SiteConfig.apiCandidatesFor(origin)
+        for (apiBase in candidates) {
+            val body = SiteHttp.openJsonGet(SiteConfig.streamsApiUrl(apiBase), referer = "$origin/") ?: continue
+            val categories = runCatching { parse(body, origin) }.getOrNull() ?: continue
+            if (isTop) SiteConfig.rememberApi(apiBase)
             return categories
         }
         return null
     }
 
-    private fun parse(body: String): List<StreamCategory>? {
+    private fun parse(body: String, origin: String): List<StreamCategory>? {
         val root = JSONObject(body)
         val nowSec = root.optLong("timestamp", System.currentTimeMillis() / 1000L)
         val blocks = root.optJSONArray("streams") ?: return null
@@ -39,7 +41,7 @@ object ApiCatalogFetcher {
                     title = stream.optString("name", uri),
                     tag = stream.optString("tag"),
                     streamUri = uri,
-                    pageUrl = SiteConfig.livePageUrl(uri),
+                    pageUrl = "$origin/live/$uri",
                     posterUrl = stream.optString("poster"),
                     playerIframeUrl = iframe,
                     isLive = StreamLive.isLive(stream, nowSec),

@@ -2,14 +2,15 @@ package dev.kpv.app
 
 import android.content.Context
 import android.net.Uri
-import java.util.Properties
+import dev.kpv.app.sites.SiteKind
+import dev.kpv.app.sites.SiteList
 
-/** User picks the site URL; API and embed hosts are resolved from that site and its catalog API. */
+/** The top listed site drives the home screen; API and embed hosts are resolved from it and its catalog API. */
 object SiteConfig {
 
     private const val PREFS = "kpv_site_config"
-    private const val KEY_SITE = "site_origin"
     private const val KEY_API = "resolved_api"
+    private const val KEY_API_SITE = "resolved_api_site"
 
     private lateinit var appContext: Context
     private var cachedSite: String = ""
@@ -32,22 +33,13 @@ object SiteConfig {
 
     fun siteUrl(): String = cachedSite
 
-    fun saveSite(site: String) {
-        val s = normalizeOrigin(site)
-        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(KEY_SITE, s)
-            .remove(KEY_API)
-            .apply()
-        cachedSite = s
-        clearResolvedEndpoints()
-    }
-
     fun rememberApi(api: String) {
         val a = normalizeOrigin(api)
         if (a.isEmpty()) return
         resolvedApi = a
         appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(KEY_API, a)
+            .putString(KEY_API_SITE, cachedSite)
             .apply()
     }
 
@@ -66,18 +58,31 @@ object SiteConfig {
         extraAllowedHosts.clear()
     }
 
-    /** API bases to try for `{base}/api/streams` (subdomain first, then same origin). */
-    fun apiCandidates(): List<String> {
-        val site = cachedSite
+    /** API bases to try for `{base}/api/streams` on [origin] (subdomain first, then same origin). */
+    fun apiCandidatesFor(origin: String): List<String> {
+        val site = normalizeOrigin(origin)
         if (site.isEmpty()) return emptyList()
         val uri = Uri.parse(site)
         val scheme = uri.scheme ?: "https"
         val host = uri.host ?: return listOf(site)
         val out = linkedSetOf<String>()
-        if (resolvedApi.isNotEmpty()) out += resolvedApi
         if (!host.startsWith("api.")) out += "$scheme://api.$host"
         out += site
         return out.toList()
+    }
+
+    /** API bases for the top site, the remembered API first. */
+    fun apiCandidates(): List<String> =
+        (listOfNotNull(resolvedApi.takeIf { it.isNotEmpty() }) + apiCandidatesFor(cachedSite)).distinct()
+
+    /** Homepage of the listed site that owns [url]'s host, else the top site's. */
+    fun refererFor(url: String): String {
+        val host = Uri.parse(url).host ?: return siteReferer
+        val site = SiteList.all().firstOrNull { entry ->
+            val siteHost = Uri.parse(entry.origin).host ?: return@firstOrNull false
+            host == siteHost || host.endsWith(".$siteHost")
+        }
+        return site?.let { "${it.origin}/" } ?: siteReferer
     }
 
     val homeUrl: String get() = "$cachedSite/"
@@ -104,19 +109,20 @@ object SiteConfig {
         }
     }
 
-    private fun origins(): List<String> = listOf(cachedSite, resolvedApi, resolvedEmbed).filter { it.isNotEmpty() }.distinct()
+    private fun origins(): List<String> =
+        (listOf(cachedSite, resolvedApi, resolvedEmbed) + SiteList.all().map { it.origin })
+            .filter { it.isNotEmpty() }
+            .distinct()
 
     private fun load() {
         val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        cachedSite = normalizeOrigin(prefs.getString(KEY_SITE, null).orEmpty())
-        if (cachedSite.isEmpty()) {
-            runCatching {
-                Properties().apply {
-                    appContext.assets.open("site.config.properties").use { load(it) }
-                }.opt("site_origin")
-            }.getOrNull()?.let { cachedSite = normalizeOrigin(it) }
+        val top = SiteList.top()
+        cachedSite = top?.origin.orEmpty()
+        val apiBelongsToTop = top?.kind == SiteKind.API && prefs.getString(KEY_API_SITE, null) == cachedSite
+        resolvedApi = if (apiBelongsToTop) normalizeOrigin(prefs.getString(KEY_API, null).orEmpty()) else ""
+        if (resolvedApi.isEmpty() && (prefs.contains(KEY_API) || prefs.contains(KEY_API_SITE))) {
+            prefs.edit().remove(KEY_API).remove(KEY_API_SITE).apply()
         }
-        resolvedApi = normalizeOrigin(prefs.getString(KEY_API, null).orEmpty())
         clearResolvedEndpoints(keepApi = resolvedApi.isNotEmpty())
     }
 
@@ -135,6 +141,4 @@ object SiteConfig {
         val host = uri.host ?: return null
         return normalizeOrigin("$scheme://$host")
     }
-
-    private fun Properties.opt(key: String): String = getProperty(key)?.trim().orEmpty()
 }
