@@ -89,6 +89,7 @@ class MainActivity : AppCompatActivity() {
         val statusBar = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.kpv_surface))
             addView(status, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -391,12 +392,15 @@ class MainActivity : AppCompatActivity() {
         selected = channel
         status.visibility = View.VISIBLE
         status.text = message
-        otherSitesButton.visibility =
-            if (channel.siteIndex < SiteList.all().lastIndex) View.VISIBLE else View.GONE
+        val canTryOthers = channel.siteIndex < SiteList.all().lastIndex
+        otherSitesButton.visibility = if (canTryOthers) View.VISIBLE else View.GONE
+        if (canTryOthers && TvHelper.isTelevision(this)) otherSitesButton.requestFocus()
     }
 
     private fun tryOtherSites(channel: ChannelListing) {
         otherSites?.cancel()
+        val failure = status.text.toString()
+        catalogView.requestFocus()
         otherSitesButton.visibility = View.GONE
         otherSites = OtherSitesFallback(
             this,
@@ -409,6 +413,7 @@ class MainActivity : AppCompatActivity() {
                 status.visibility = View.VISIBLE
                 status.text = text
             },
+            onGiveUp = { showFailure(channel, failure) },
         ).also { it.start() }
     }
 
@@ -418,7 +423,7 @@ class MainActivity : AppCompatActivity() {
         selected = channel
         catalogView.setLoadingStream(channel.streamUri)
         catalogView.isEnabled = false
-        status.visibility = android.view.View.GONE
+        status.visibility = View.GONE
         otherSitesButton.visibility = View.GONE
         val source = channel.sources.getOrNull(sourceIndex)
         val uri = source?.streamUri ?: channel.streamUri
@@ -445,7 +450,7 @@ class MainActivity : AppCompatActivity() {
             } else if (stream == null) {
                 showFailure(channel, "Couldn't start ${channel.title}. Try again.")
             } else {
-                status.visibility = android.view.View.GONE
+                status.visibility = View.GONE
                 if (CastController.isConnected() &&
                     CastPlayback.start(this, castItem(channel), sourceIndex, stream)
                 ) {
@@ -501,7 +506,7 @@ class MainActivity : AppCompatActivity() {
         val channel = selected ?: return
         if (resultCode == PlayerActivity.RESULT_PLAYBACK_FAILED && !autoRetried) {
             autoRetried = true
-            status.visibility = android.view.View.VISIBLE
+            status.visibility = View.VISIBLE
             status.text = "Stream dropped, reconnecting…"
             playChannel(channel, retry = true)
             return
@@ -510,7 +515,7 @@ class MainActivity : AppCompatActivity() {
         if (resultCode == PlayerActivity.RESULT_PLAYBACK_FAILED) {
             showFailure(channel, "${channel.title} stopped. Pick another stream.")
         } else {
-            status.visibility = android.view.View.GONE
+            status.visibility = View.GONE
             otherSitesButton.visibility = View.GONE
         }
     }

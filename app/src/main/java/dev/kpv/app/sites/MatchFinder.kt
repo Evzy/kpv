@@ -19,16 +19,20 @@ object MatchFinder {
 
     fun find(target: SiteEvent, candidates: List<SiteEvent>): MatchResult {
         if (candidates.isEmpty()) return MatchResult.None
-        val sides = sides(target.title) ?: return MatchResult.Unsure(candidates)
+        val sides = sides(target.title)
+        if (sides == null) {
+            val near = candidates.filter { timesClose(target, it) }
+            return if (near.isEmpty()) MatchResult.None else MatchResult.Unsure(near)
+        }
         val scored = candidates.map { it to score(sides, it) }
         val full = scored.filter { (event, s) -> s == 2 && timesClose(target, event) }.map { it.first }
         if (full.size == 1) return MatchResult.Match(full[0])
         val partial = scored.filter { it.second >= 1 }.map { it.first }
-        return MatchResult.Unsure(partial + candidates.filter { it !in partial })
+        return if (partial.isEmpty()) MatchResult.None else MatchResult.Unsure(partial)
     }
 
     private fun score(target: Pair<Set<String>, Set<String>>, candidate: SiteEvent): Int {
-        val other = sides(candidate.title) ?: return 0
+        val other = sides(candidate.title) ?: return overlap(target.first + target.second, words(candidate.title))
         val straight = overlap(target.first, other.first) + overlap(target.second, other.second)
         val swapped = overlap(target.first, other.second) + overlap(target.second, other.first)
         return maxOf(straight, swapped)

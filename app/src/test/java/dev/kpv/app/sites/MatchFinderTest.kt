@@ -47,8 +47,35 @@ class MatchFinderTest {
         assertEquals(MatchResult.None, MatchFinder.find(ev("Atlanta Hawks vs Miami Heat"), emptyList()))
     }
 
-    @Test fun nothingRelatedIsUnsureWithAllCandidates() {
+    @Test fun nothingRelatedIsNone() {
         val other = ev("Bulls vs Knicks")
-        assertEquals(MatchResult.Unsure(listOf(other)), MatchFinder.find(ev("Atlanta Hawks vs Miami Heat"), listOf(other)))
+        assertEquals(MatchResult.None, MatchFinder.find(ev("Atlanta Hawks vs Miami Heat"), listOf(other, ev("Fox Footy"))))
+    }
+
+    @Test fun unsureListsOnlyRelatedCandidates() {
+        val half = ev("Hawks vs Celtics")
+        val single = ev("Miami Heat TV")
+        val unrelated = ev("Bulls vs Knicks")
+        assertEquals(
+            MatchResult.Unsure(listOf(half, single)),
+            MatchFinder.find(ev("Atlanta Hawks vs Miami Heat"), listOf(half, unrelated, single)),
+        )
+    }
+
+    @Test fun singleSidedTitleListsOnlyCandidatesNearItsStart() {
+        val near = ev("Fox Footy", start = t0 + 3600)
+        val unknown = ev("ESPN", start = 0)
+        val far = ev("Sky Sports", start = t0 + 5 * 3600)
+        assertEquals(MatchResult.Unsure(listOf(near, unknown)), MatchFinder.find(ev("Fox Footy"), listOf(near, far, unknown)))
+    }
+
+    @Test fun singleSidedTitleWithNoneNearIsNone() {
+        val far = ev("Sky Sports", start = t0 + 5 * 3600)
+        assertEquals(MatchResult.None, MatchFinder.find(ev("Fox Footy"), listOf(far)))
+    }
+
+    @Test fun singleSidedTitleWithoutStartListsEverything() {
+        val far = ev("Sky Sports", start = t0 + 5 * 3600)
+        assertEquals(MatchResult.Unsure(listOf(far)), MatchFinder.find(ev("Fox Footy", start = 0), listOf(far)))
     }
 }
