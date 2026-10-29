@@ -471,6 +471,7 @@ class MainActivity : AppCompatActivity() {
         streamUri = channel.streamUri,
         iframeUrl = channel.playerIframeUrl,
         sources = channel.sources,
+        twitchChat = channel.twitchChat,
     )
 
     private fun updateCastButtonVisibility() {

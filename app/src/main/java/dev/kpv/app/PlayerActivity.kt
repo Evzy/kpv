@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.updatePadding
 import dev.kpv.app.chat.ChatOverlayView
 import dev.kpv.app.chat.LiveChatClient
+import dev.kpv.app.chat.TwitchChatClient
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -51,6 +52,7 @@ class PlayerActivity : AppCompatActivity() {
 
         private const val EXTRA_STREAM_URI = "stream_uri"
         private const val EXTRA_IFRAME_URL = "iframe_url"
+        private const val EXTRA_TWITCH_CHAT = "twitch_chat"
 
         fun intent(
             context: Context,
@@ -66,6 +68,7 @@ class PlayerActivity : AppCompatActivity() {
                 .putExtra(EXTRA_STREAM_ID, channel.streamId)
                 .putExtra(EXTRA_STREAM_URI, channel.streamUri)
                 .putExtra(EXTRA_IFRAME_URL, channel.iframeUrl)
+                .putExtra(EXTRA_TWITCH_CHAT, channel.twitchChat)
                 .putExtra(EXTRA_SOURCE_LABELS, channel.sources.map { it.label }.toTypedArray())
                 .putExtra(EXTRA_SOURCE_URIS, channel.sources.map { it.streamUri }.toTypedArray())
                 .putExtra(EXTRA_SOURCE_IFRAMES, channel.sources.map { it.iframeUrl }.toTypedArray())
@@ -80,9 +83,11 @@ class PlayerActivity : AppCompatActivity() {
     private var castSessionListener: SessionManagerListener<CastSession>? = null
     private var playbackReady = false
     private var streamId = 0L
+    private var twitchChat = ""
     private var chatButton: ImageButton? = null
     private var chatOverlay: ChatOverlayView? = null
     private var chatClient: LiveChatClient? = null
+    private var twitchClient: TwitchChatClient? = null
     private var chatOn = false
     private var sources: List<StreamSource> = emptyList()
     private var sourceIndex = 0
@@ -105,6 +110,7 @@ class PlayerActivity : AppCompatActivity() {
         val headers = names.zip(values).toMap()
         streamTitle = intent.getStringExtra(EXTRA_TITLE) ?: "KPV"
         streamId = intent.getLongExtra(EXTRA_STREAM_ID, 0L)
+        twitchChat = intent.getStringExtra(EXTRA_TWITCH_CHAT).orEmpty()
         sources = readSources()
         sourceIndex = intent.getIntExtra(EXTRA_SOURCE_INDEX, 0).coerceIn(0, maxOf(0, sources.lastIndex))
         resolvedStream = ResolvedStream(url, headers)
@@ -179,7 +185,7 @@ class PlayerActivity : AppCompatActivity() {
                     showSourcePicker()
                 }
             }
-            if (streamId > 0L) {
+            if (streamId > 0L || twitchChat.isNotEmpty()) {
                 val overlay = ChatOverlayView(this@PlayerActivity, television).apply { visibility = View.GONE }
                 chatOverlay = overlay
                 addView(
@@ -410,12 +416,18 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun startChat() {
         val overlay = chatOverlay ?: return
-        val client = chatClient ?: LiveChatClient(this) { overlay.add(it) }.also { chatClient = it }
-        client.start(streamId)
+        if (streamId > 0L) {
+            val client = chatClient ?: LiveChatClient(this) { overlay.add(it) }.also { chatClient = it }
+            client.start(streamId)
+        } else {
+            val client = twitchClient ?: TwitchChatClient { overlay.add(it) }.also { twitchClient = it }
+            client.start(twitchChat)
+        }
     }
 
     private fun stopChat() {
         chatClient?.stop()
+        twitchClient?.stop()
         chatOverlay?.clear()
     }
 
@@ -428,6 +440,7 @@ class PlayerActivity : AppCompatActivity() {
             streamUri = intent.getStringExtra(EXTRA_STREAM_URI).orEmpty(),
             iframeUrl = intent.getStringExtra(EXTRA_IFRAME_URL).orEmpty(),
             sources = sources,
+            twitchChat = twitchChat,
         )
         if (CastPlayback.start(this, channel, sourceIndex, resolvedStream)) {
             Toast.makeText(this, getString(R.string.cast_playing_on_tv, streamTitle), Toast.LENGTH_SHORT).show()
@@ -459,6 +472,8 @@ class PlayerActivity : AppCompatActivity() {
         }
         chatClient?.stop()
         chatClient = null
+        twitchClient?.stop()
+        twitchClient = null
         sourceResolver?.cancel()
         sourceResolver = null
         player?.release()

@@ -17,6 +17,8 @@ data class ChannelListing(
     val alwaysLive: Boolean = false,
     /** Numeric catalog `id`; keys the live chat. 0 when the source has none. */
     val streamId: Long = 0L,
+    /** Twitch channel whose chat the stream's page embeds; "" when none. */
+    val twitchChat: String = "",
     /** Main source then alternatives; empty when the stream has only one. */
     val sources: List<StreamSource> = emptyList(),
     /** Event page to read the sources from just before playing; empty when [sources] is complete. */

@@ -30,10 +30,13 @@ object SiteAdapters {
         val origin = SiteList.all().getOrNull(channel.siteIndex)?.origin ?: return null
         val html = SiteHttp.openTextGet(channel.sourcesPage, "$origin/") ?: return null
         val sources = EventPagesParser.parseSources(html, channel.sourcesPage)
-        return when {
-            sources.isEmpty() -> null
-            sources.size == 1 -> channel.copy(playerIframeUrl = sources[0].iframeUrl, sources = emptyList(), sourcesPage = "")
-            else -> channel.copy(playerIframeUrl = sources[0].iframeUrl, sources = sources, sourcesPage = "")
-        }
+        if (sources.isEmpty()) return null
+        val chat = runCatching { SiteChat.twitchChannel(html, channel.sourcesPage) }.getOrDefault("")
+        return channel.copy(
+            playerIframeUrl = sources[0].iframeUrl,
+            sources = if (sources.size == 1) emptyList() else sources,
+            sourcesPage = "",
+            twitchChat = chat,
+        )
     }
 }

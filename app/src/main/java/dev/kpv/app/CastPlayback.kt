@@ -25,6 +25,7 @@ object CastPlayback {
         val streamUri: String,
         val iframeUrl: String,
         val sources: List<StreamSource>,
+        val twitchChat: String = "",
     )
 
     private const val TAG = "KpvCastPlayback"
